@@ -26,6 +26,9 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  assets:
+    - assets/data/vehicle_catalog.json
+
   fonts:
     - family: Sora
       fonts:

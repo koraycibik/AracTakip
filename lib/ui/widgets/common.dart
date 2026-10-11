@@ -420,9 +420,15 @@ class LabeledField extends StatelessWidget {
     this.suffix,
     this.textCapitalization = TextCapitalization.none,
     this.onChanged,
+    this.readOnly = false,
+    this.onTap,
+    this.suffixIcon,
   });
   final String label;
   final String? labelHint;
+  final bool readOnly;
+  final VoidCallback? onTap;
+  final IconData? suffixIcon;
   final TextEditingController controller;
   final String? hint;
   final TextInputType? keyboardType;
@@ -448,10 +454,13 @@ class LabeledField extends StatelessWidget {
           maxLength: maxLength,
           textCapitalization: textCapitalization,
           onChanged: onChanged,
+          readOnly: readOnly,
+          onTap: onTap,
           style: body(16, weight: FontWeight.w600),
           decoration: InputDecoration(
             hintText: hint,
             suffixText: suffix,
+            suffixIcon: suffixIcon == null ? null : Icon(suffixIcon, color: AppColors.inkSoft),
             counterText: '',
           ),
         ),

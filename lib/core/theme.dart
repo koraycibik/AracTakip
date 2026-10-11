@@ -95,6 +95,10 @@ IconData vehicleIcon(VehicleType t) {
       return Icons.airport_shuttle;
     case VehicleType.truck:
       return Icons.local_shipping;
+    case VehicleType.minibus:
+      return Icons.directions_bus;
+    case VehicleType.bus:
+      return Icons.directions_bus_filled;
   }
 }
 

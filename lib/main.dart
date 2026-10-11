@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import 'app.dart';
 import 'data/app_store.dart';
+import 'data/vehicle_catalog.dart';
 import 'services/ad_service.dart';
 import 'services/notification_service.dart';
 
@@ -23,6 +24,9 @@ Future<void> main() async {
   NotificationService.instance.scheduleSoon(store);
 
   runApp(AracTakipApp(store: store));
+
+  // Marka/model listesini arka planda hazırla.
+  VehicleCatalog.instance.load();
 
   // Reklam onayı ve SDK açılışı uygulamayı bekletmesin.
   AdService.instance.init();

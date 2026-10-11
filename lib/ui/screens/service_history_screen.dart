@@ -10,6 +10,7 @@ import '../../data/models.dart';
 import '../widgets/common.dart';
 import 'report_screen.dart';
 import 'vehicle_detail_screen.dart';
+import 'workshops_screen.dart';
 
 class ServiceHistoryScreen extends StatelessWidget {
   const ServiceHistoryScreen({super.key, required this.vehicleId});
@@ -86,6 +87,8 @@ class _ServiceHistoryBodyState extends State<ServiceHistoryBody> {
                   onShare: () => Navigator.of(context).push(MaterialPageRoute(
                       builder: (_) => ReportScreen(vehicleId: v.id))),
                 ),
+                const SizedBox(height: 10),
+                const WorkshopsLinkCard(),
                 const SizedBox(height: 14),
                 SizedBox(
                   height: 42,

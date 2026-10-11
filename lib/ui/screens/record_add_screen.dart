@@ -9,6 +9,7 @@ import '../../core/theme.dart';
 import '../../data/app_store.dart';
 import '../../data/models.dart';
 import '../../data/presets.dart';
+import '../../logic/workshops.dart';
 import '../../services/ad_service.dart';
 import '../widgets/common.dart';
 import 'vehicle_form_screen.dart';
@@ -64,6 +65,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
       _date = e.date;
       _dueDate = e.dueDate;
       _fuelKind = e.fuelKind ?? 'gasoline';
+      _insuranceKind = e.insuranceKind ?? 'traffic';
       _chargeLoc = e.chargeLocation;
       _jobs.addAll(e.jobs);
     } else {
@@ -168,7 +170,8 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
       ..jobs = _cat == RecordCategory.maintenance ? _jobs.toList() : []
       ..serviceName = (_cat.hasService && service.isNotEmpty) ? service : null
       ..note = (_cat.hasNote && note.isNotEmpty) ? note : null
-      ..dueDate = _cat == RecordCategory.fine ? _dueDate : null;
+      ..dueDate = _cat == RecordCategory.fine ? _dueDate : null
+      ..insuranceKind = _cat == RecordCategory.insurance ? _insuranceKind : null;
 
     // Sigorta / muayene kaydında yeni bitiş tarihi girildiyse araca yaz.
     if (_nextDate != null) {
@@ -404,7 +407,35 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
                             controller: _service,
                             hint: 'Ör. Özgür Oto Sanayi',
                             textCapitalization: TextCapitalization.words,
+                            maxLength: 80,
+                            onChanged: (_) => setState(() {}),
                           ),
+                          // Usta defterinden öneriler: aynı usta farklı yazımlarla çoğalmasın.
+                          Builder(builder: (context) {
+                            final tips = serviceSuggestions(StoreScope.read(context).allRecords, _service.text);
+                            if (tips.isEmpty) return const SizedBox.shrink();
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  for (final t in tips)
+                                    ActionChip(
+                                      avatar: const Icon(Icons.person_outline, size: 16, color: AppColors.catMaint),
+                                      label: Text(t, style: body(13, weight: FontWeight.w600)),
+                                      backgroundColor: AppColors.catMaintTint,
+                                      side: BorderSide.none,
+                                      shape: const StadiumBorder(),
+                                      onPressed: () => setState(() {
+                                        _service.text = t;
+                                        _service.selection = TextSelection.collapsed(offset: t.length);
+                                      }),
+                                    ),
+                                ],
+                              ),
+                            );
+                          }),
                         ],
                         if (_cat == RecordCategory.fine) ...[
                           const SizedBox(height: 12),

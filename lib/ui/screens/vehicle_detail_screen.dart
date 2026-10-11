@@ -10,12 +10,14 @@ import '../../data/app_store.dart';
 import '../../data/models.dart';
 import '../../logic/maintenance.dart';
 import '../../logic/reminders.dart';
+import '../../logic/true_cost.dart';
 import '../widgets/common.dart';
 import '../widgets/dialogs.dart';
 import 'accident_screen.dart';
 import 'maintenance_plan_screen.dart';
 import 'record_add_screen.dart';
 import 'service_history_screen.dart';
+import 'true_cost_screen.dart';
 import 'vehicle_form_screen.dart';
 
 class VehicleDetailScreen extends StatelessWidget {
@@ -210,11 +212,20 @@ class _Header extends StatelessWidget {
             Row(
               children: [
                 Expanded(child: _HeaderStat('Bu ay harcama', money(store.monthTotal(v.id)))),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: _HeaderStat(
                     v.fuelType == FuelType.electric ? 'Şarj / 100 km' : 'Yakıt / 100 km',
                     per100 == null ? '—' : money(per100),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _HeaderStat(
+                    'Gerçek maliyet ›',
+                    _perDayText(store, v),
+                    onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => TrueCostScreen(vehicleId: v.id))),
                   ),
                 ),
               ],
@@ -224,27 +235,49 @@ class _Header extends StatelessWidget {
       ),
     );
   }
+
+  static String _perDayText(AppStore store, Vehicle v) {
+    final c = computeTrueCost(v, store.allRecords, CostPeriod.year);
+    if (c.totalKurus == 0) return '—';
+    return '${money(c.perDayKurus)}/gün';
+  }
 }
 
 class _HeaderStat extends StatelessWidget {
-  const _HeaderStat(this.label, this.value);
+  const _HeaderStat(this.label, this.value, {this.onTap});
   final String label;
   final String value;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0x1AFFFFFF),
+    return Material(
+      color: const Color(0x1AFFFFFF),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
         borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: body(12, color: AppColors.navySoft)),
-          Text(value, style: display(19, weight: FontWeight.w700, color: Colors.white)),
-        ],
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(label,
+                    style: body(12,
+                        weight: onTap == null ? FontWeight.w400 : FontWeight.w700,
+                        color: onTap == null ? AppColors.navySoft : AppColors.accent)),
+              ),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(value, style: display(18, weight: FontWeight.w700, color: Colors.white)),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -1,0 +1,109 @@
+// Gerçek maliyet: aracın günlük, km başı ve aylık maliyeti.
+// Kaza/hasar tutarları dahil değildir; satın alma bedeli ve değer kaybı hesaba katılmaz.
+
+import 'dart:ui';
+
+import '../core/format.dart';
+import '../core/theme.dart';
+import '../data/models.dart';
+import 'km.dart';
+
+enum CostPeriod { year, all }
+
+class CostGroup {
+  CostGroup(this.label, this.color, this.cats);
+  final String label;
+  final Color color;
+  final Set<RecordCategory> cats;
+  int kurus = 0;
+}
+
+class TrueCost {
+  TrueCost({
+    required this.vehicle,
+    required this.start,
+    required this.days,
+    required this.km,
+    required this.totalKurus,
+    required this.groups,
+  });
+
+  final Vehicle vehicle;
+  final DateTime start;
+  final int days;
+
+  /// Dönemde yapılan yol (bilinmiyorsa 0).
+  final int km;
+  final int totalKurus;
+  final List<CostGroup> groups;
+
+  int get perDayKurus => (totalKurus / days).round();
+  int get perMonthKurus => (totalKurus / days * 30.4).round();
+
+  /// Km başı (kuruş, ondalıklı). 100 km'den az yol varsa güvenilir değil → null.
+  double? get perKmKurus => km >= 100 ? totalKurus / km : null;
+  double? groupPerKm(CostGroup g) => km >= 100 ? g.kurus / km : null;
+
+  /// Bir aydan kısa veriyle hesaplanan sonuçlar yanıltıcı olabilir.
+  bool get isShort => days < 30;
+}
+
+List<CostGroup> _groups(Vehicle v) => [
+      CostGroup(v.fuelType == FuelType.electric ? 'Şarj' : (v.fuelType.usesCharge ? 'Yakıt ve şarj' : 'Yakıt'),
+          AppColors.catFuel, {RecordCategory.fuel, RecordCategory.charge}),
+      CostGroup('Sigorta ve kasko', AppColors.catIns, {RecordCategory.insurance}),
+      CostGroup('Bakım ve lastik', AppColors.catMaint, {RecordCategory.maintenance, RecordCategory.tire}),
+      CostGroup('Vergi, muayene, diğer', AppColors.catTax,
+          {RecordCategory.tax, RecordCategory.inspection, RecordCategory.fine, RecordCategory.other}),
+    ];
+
+TrueCost computeTrueCost(Vehicle v, List<ExpenseRecord> records, CostPeriod period) {
+  final now = DateTime.now();
+  final end = today();
+  final own = records.where((r) => r.vehicleId == v.id).toList();
+
+  // Aracın verisinin başladığı gün: eklenme tarihi ya da daha eski tarihli ilk kayıt.
+  var dataStart = dateOnly(v.createdAt);
+  for (final r in own) {
+    if (r.date.isBefore(dataStart)) dataStart = dateOnly(r.date);
+  }
+  for (final p in v.kmLog) {
+    if (p.date.isBefore(dataStart)) dataStart = dateOnly(p.date);
+  }
+
+  var start = dataStart;
+  if (period == CostPeriod.year) {
+    final yearAgo = end.subtract(const Duration(days: 364));
+    if (yearAgo.isAfter(start)) start = yearAgo;
+  }
+  var days = daysBetween(start, end) + 1;
+  if (days < 1) days = 1;
+
+  final groups = _groups(v);
+  var total = 0;
+  for (final r in own) {
+    if (r.date.isBefore(start) || r.date.isAfter(now)) continue;
+    total += r.amountKurus;
+    for (final g in groups) {
+      if (g.cats.contains(r.category)) g.kurus += r.amountKurus;
+    }
+  }
+
+  return TrueCost(
+    vehicle: v,
+    start: start,
+    days: days,
+    km: kmDrivenBetween(v, records, start, now),
+    totalKurus: total,
+    groups: groups,
+  );
+}
+
+/// Km başı tutar: kuruş → "₺3,47"
+String moneyPerKm(double kurus) {
+  final lira = kurus / 100;
+  final whole = lira.floor();
+  final dec = ((lira - whole) * 100).round();
+  if (dec == 100) return '₺${thousands(whole + 1)},00';
+  return '₺${thousands(whole)},${dec.toString().padLeft(2, '0')}';
+}

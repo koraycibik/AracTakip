@@ -9,6 +9,8 @@ import '../../core/layout.dart';
 import '../../core/theme.dart';
 import '../../data/app_store.dart';
 import '../../data/models.dart';
+import '../../data/vehicle_catalog.dart';
+import '../widgets/catalog_picker.dart';
 import '../widgets/common.dart';
 
 class VehicleFormScreen extends StatefulWidget {
@@ -38,6 +40,50 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
   bool _init = false;
 
   bool get _isEdit => _editing != null;
+
+  final _catalog = VehicleCatalog.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_catalog.isLoaded) {
+      _catalog.load().then((_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  List<String> get _brandItems => [for (final b in _catalog.brandsFor(_type)) b.name];
+  List<String> get _modelItems => _catalog.modelsFor(_type, _brand.text);
+
+  Future<void> _pickBrand() async {
+    final picked = await showCatalogPicker(
+      context,
+      title: '${_type.label} markası',
+      items: _brandItems,
+      current: _brand.text,
+      searchHint: 'Marka ara',
+      icon: vehicleIcon(_type),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      if (_brand.text.trim().isNotEmpty && normalizeTr(picked) != normalizeTr(_brand.text)) _model.clear();
+      _brand.text = picked;
+    });
+  }
+
+  Future<void> _pickModel() async {
+    final picked = await showCatalogPicker(
+      context,
+      title: '${_brand.text} modeli',
+      items: _modelItems,
+      current: _model.text,
+      searchHint: 'Model ara',
+      icon: vehicleIcon(_type),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _model.text = picked);
+  }
 
   @override
   void didChangeDependencies() {
@@ -226,7 +272,7 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
       children: [
         const FieldLabel('Araç türü'),
         LayoutBuilder(builder: (context, c) {
-          final w = (c.maxWidth - 4 * 6) / 5;
+          final w = (c.maxWidth - 3 * 6) / 4;
           return Wrap(
             spacing: 6,
             runSpacing: 6,
@@ -250,21 +296,41 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: LabeledField(
-                label: 'Marka',
-                controller: _brand,
-                hint: _brandHint,
-                textCapitalization: TextCapitalization.words,
-              ),
+              child: _brandItems.isEmpty
+                  ? LabeledField(
+                      label: 'Marka',
+                      controller: _brand,
+                      hint: _brandHint,
+                      textCapitalization: TextCapitalization.words,
+                      onChanged: (_) => setState(() {}),
+                    )
+                  : LabeledField(
+                      label: 'Marka',
+                      controller: _brand,
+                      hint: 'Seç',
+                      readOnly: true,
+                      onTap: _pickBrand,
+                      suffixIcon: Icons.expand_more,
+                    ),
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: LabeledField(
-                label: 'Model',
-                controller: _model,
-                hint: _modelHint,
-                textCapitalization: TextCapitalization.words,
-              ),
+              // Markanın modelleri listede varsa seçici, yoksa serbest yazım.
+              child: _modelItems.isEmpty
+                  ? LabeledField(
+                      label: 'Model',
+                      controller: _model,
+                      hint: _modelHint,
+                      textCapitalization: TextCapitalization.words,
+                    )
+                  : LabeledField(
+                      label: 'Model',
+                      controller: _model,
+                      hint: 'Seç',
+                      readOnly: true,
+                      onTap: _pickModel,
+                      suffixIcon: Icons.expand_more,
+                    ),
             ),
           ],
         ),
@@ -335,6 +401,8 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
         VehicleType.atv => 'CFMoto',
         VehicleType.van => 'Ford',
         VehicleType.truck => 'Mercedes-Benz',
+        VehicleType.minibus => 'Iveco',
+        VehicleType.bus => 'Otokar',
       };
 
   String get _modelHint => switch (_type) {
@@ -343,6 +411,8 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
         VehicleType.atv => 'CForce 450',
         VehicleType.van => 'Transit Custom',
         VehicleType.truck => 'Actros',
+        VehicleType.minibus => 'Daily',
+        VehicleType.bus => 'Kent',
       };
 
   List<Widget> _dateFields() => [

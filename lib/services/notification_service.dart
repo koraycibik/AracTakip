@@ -14,6 +14,7 @@ import 'package:timezone/timezone.dart' as tz;
 import '../core/format.dart';
 import '../data/app_store.dart';
 import '../logic/maintenance.dart';
+import '../logic/month_summary.dart';
 import '../logic/reminders.dart';
 
 class NotificationService {
@@ -24,7 +25,7 @@ class NotificationService {
   bool _ready = false;
   Timer? _debounce;
 
-  /// Bildirime dokunulunca gelen yük: 'reminders' veya 'km:<aracId>'.
+  /// Bildirime dokunulunca gelen yük: 'reminders', 'km:<aracId>' veya 'summary:<yıl>-<ay>'.
   final tappedPayload = ValueNotifier<String?>(null);
 
   static const _channel = AndroidNotificationDetails(
@@ -141,6 +142,27 @@ class NotificationService {
           'km:${v.id}',
         ));
         i++;
+      }
+
+      // 4) Ay sonu özeti: önümüzdeki ayın 1'inde bu ayın özeti.
+      if (store.vehicles.isNotEmpty) {
+        final n = DateTime.now();
+        final month = DateTime(n.year, n.month);
+        final summary = computeMonthSummary(
+          month: month,
+          vehicles: store.vehicles,
+          records: store.allRecords,
+          reminders: store.reminders,
+        );
+        final when = at(DateTime(n.year, n.month + 1, 1), extraMinutes: 3);
+        if (when.isAfter(now)) {
+          plans.add(_Plan(
+            when,
+            '${summary.monthName} özetin hazır',
+            monthSummaryNotificationBody(summary),
+            'summary:${month.year}-${month.month}',
+          ));
+        }
       }
 
       plans.sort((a, b) => a.when.compareTo(b.when));

@@ -241,6 +241,28 @@ class _ItemFormState extends State<_ItemForm> {
   final _lastKm = TextEditingController();
   DateTime? _lastDate;
   bool _notify = true;
+  List<String> _resetJobs = [];
+
+  /// Yeni kalem eklerken tek dokunuşla doldurulan hazır kalemler.
+  static const _quick = <(String, int?, int?, List<String>)>[
+    ('Triger seti', 90000, 60, ['timing_belt']),
+    ('Fren balatası', 40000, null, ['brake_pads']),
+    ('Hava filtresi', 20000, 24, ['air_filter']),
+    ('Polen filtresi', 15000, 12, ['cabin_filter']),
+    ('Antifriz ve fren hidroliği', null, 24, ['coolant', 'brake_fluid']),
+    ('Buji', 40000, 48, ['spark_plug']),
+    ('Akü kontrolü', null, 12, ['battery_check']),
+    ('Klima bakımı', null, 24, ['ac_service']),
+  ];
+
+  void _applyQuick((String, int?, int?, List<String>) q) {
+    setState(() {
+      _name.text = q.$1;
+      _km.text = q.$2 == null ? '' : thousands(q.$2!);
+      _months.text = q.$3?.toString() ?? '';
+      _resetJobs = List.of(q.$4);
+    });
+  }
 
   @override
   void initState() {
@@ -253,6 +275,7 @@ class _ItemFormState extends State<_ItemForm> {
       _lastKm.text = i.lastDoneKm == null ? '' : thousands(i.lastDoneKm!);
       _lastDate = i.lastDoneDate;
       _notify = i.notify;
+      _resetJobs = List.of(i.resetJobs);
     } else {
       _lastKm.text = thousands(widget.vehicle.currentKm);
       _lastDate = today();
@@ -288,7 +311,8 @@ class _ItemFormState extends State<_ItemForm> {
       ..intervalMonths = (months != null && months > 0) ? months : null
       ..lastDoneKm = parseKm(_lastKm.text)
       ..lastDoneDate = _lastDate
-      ..notify = _notify;
+      ..notify = _notify
+      ..resetJobs = _resetJobs;
     if (widget.item == null) {
       store.addItem(i);
     } else {
@@ -316,6 +340,22 @@ class _ItemFormState extends State<_ItemForm> {
           children: [
             Text(widget.item == null ? 'Yeni bakım kalemi' : widget.item!.name,
                 style: display(20, weight: FontWeight.w800)),
+            if (widget.item == null) ...[
+              const SizedBox(height: 12),
+              const FieldLabel('Hızlı ekle'),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final q in _quick)
+                    PillChoice(
+                      label: q.$1,
+                      selected: _name.text == q.$1,
+                      onTap: () => _applyQuick(q),
+                    ),
+                ],
+              ),
+            ],
             const SizedBox(height: 14),
             LabeledField(
               label: 'Adı',

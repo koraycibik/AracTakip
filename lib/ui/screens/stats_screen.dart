@@ -9,6 +9,7 @@ import '../../core/theme.dart';
 import '../../data/app_store.dart';
 import '../../logic/stats.dart';
 import '../widgets/common.dart';
+import 'month_summary_screen.dart';
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
@@ -102,6 +103,10 @@ class _StatsScreenState extends State<StatsScreen> {
                     ),
                 ],
               ),
+              if (allVehicles.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const MonthSummaryLinkCard(),
+              ],
               const SizedBox(height: 12),
               Row(
                 children: [

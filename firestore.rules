@@ -11,7 +11,7 @@ service cloud.firestore {
         allow read, delete: if isOwner(uid);
         allow create, update: if isOwner(uid)
           && request.resource.data.ownerUid == uid
-          && request.resource.data.type in ['car', 'motorcycle', 'atv', 'van', 'truck'];
+          && request.resource.data.type in ['car', 'motorcycle', 'atv', 'van', 'truck', 'minibus', 'bus'];
 
         match /records/{recordId} {
           allow read, delete: if isOwner(uid);
@@ -21,7 +21,13 @@ service cloud.firestore {
             && request.resource.data.amountKurus >= 0
             && (!('note' in request.resource.data)
                 || request.resource.data.note == null
-                || request.resource.data.note.size() <= 1000);
+                || request.resource.data.note.size() <= 1000)
+            && (!('serviceName' in request.resource.data)
+                || request.resource.data.serviceName == null
+                || request.resource.data.serviceName.size() <= 80)
+            && (!('insuranceKind' in request.resource.data)
+                || request.resource.data.insuranceKind == null
+                || request.resource.data.insuranceKind in ['traffic', 'casco']);
         }
         match /maintenanceItems/{itemId} {
           allow read, write: if isOwner(uid);
@@ -43,6 +49,13 @@ service cloud.firestore {
     // "Tüm araçlar" istatistiği: collection group sorgusu
     match /{path=**}/records/{recordId} {
       allow read: if signedIn() && resource.data.ownerUid == request.auth.uid;
+    }
+
+    // Marka/model kataloğu: herkes okur, sadece Firebase konsolundan yazılır.
+    // Belge yapısı: catalog/{car|motorcycle|...} → { brands: [ {brand, models: [...]}, ... ] }
+    match /catalog/{type} {
+      allow read: if true;
+      allow write: if false;
     }
 
     // Paylaşılan araç raporu: bağlantıyı bilen herkes 30 gün okuyabilir.

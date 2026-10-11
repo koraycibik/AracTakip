@@ -16,7 +16,7 @@ Kişinin araç(lar)ını takip ettiği mobil uygulama: muayene, trafik sigortas�
 - Platform: Android + iOS, tek kod tabanı.
 - Gelir: **sadece reklam** (AdMob). Premium/abonelik yok.
 - Kullanıcıdan **hiçbir şekilde fotoğraf/dosya alınmaz** (OCR, belge kasası yok).
-- Araç türleri: otomobil, motosiklet, ATV, kamyonet, kamyon.
+- Araç türleri: otomobil, motosiklet, ATV, kamyonet, kamyon, minibüs, otobüs.
 
 ## Teknoloji
 
@@ -52,7 +52,7 @@ Kişinin araç(lar)ını takip ettiği mobil uygulama: muayene, trafik sigortas�
 
 0. **Karşılama:** tanıtım, "Hemen başla", "Hesabım var, giriş yap", KVKK/gizlilik bağlantıları.
 1. **Garajım:** "Verilerini güvenceye al" kartı (hesap bağlı değilse), öne çıkan araç kartı (lacivert, Türk plakası, kalan süre halkaları: kasko/muayene/lastik), diğer araçlar listesi, "Yeni araç ekle". Sağ üstte ayarlar ve bildirim (rozetli) butonları.
-2a. **Araç ekle, adım 1:** plaka (TR plakası görünümlü giriş), araç türü (5 seçenek), marka, model, yıl, güncel km, yakıt tipi (Benzin, Dizel, LPG, Benzin+LPG, Hibrit, Elektrik; şarj edilebilir hibrit eklenmesi tartışmada).
+2a. **Araç ekle, adım 1:** plaka (TR plakası görünümlü giriş), araç türü (7 seçenek), marka ve model (araç tipine göre listeden aranarak seçilir, listede yoksa "… olarak kullan" ile serbest yazılır; kasa tipi/SUV yok), yıl, güncel km, yakıt tipi (Benzin, Dizel, LPG, Benzin+LPG, Hibrit, Elektrik; şarj edilebilir hibrit eklenmesi tartışmada).
 2b. **Araç ekle, adım 2:** sonraki muayene, trafik sigortası bitişi, kasko bitişi (isteğe bağlı), son bakım km'si, mevsimlik lastik hatırlatması (Kasım/Nisan). MTV (Ocak/Temmuz) otomatik. Kaydedince garaja döner, reklam yok.
 3. **Araç detayı:** km (güncelle butonu), bu ay harcama, yakıt/şarj ₺/100 km, durum kutuları (kasko, trafik sig., muayene, kış lastiği, MTV, yaklaşan bakım kalemi), altta 3 kart: Bakım planı, Servis geçmişi, Kaza/hasar.
 4. **Kayıt ekle** (kaydırılan form): üstte araç seçimi; kategoriler: Yakıt (elektrikli araçta **Şarj**), Bakım, Lastik, Sigorta, Muayene, Vergi, Ceza, Diğer. Büyük TL tutar alanı, tarih, km.
@@ -71,11 +71,15 @@ Kişinin araç(lar)ını takip ettiği mobil uygulama: muayene, trafik sigortas�
 11. **Ayarlar:** hesap bilgisi, bildirimler (açık/kapalı, saat 09:00, kaç gün önce 30·7·1), KVKK, gizlilik, bize ulaş, çıkış, hesap silme.
 12. **Hesabını bağla:** alttan açılan tek dokunuşluk pencere (platforma göre Google veya Apple), e-posta bağlantısı, "Şimdi değil".
 13. **Bakım planı:** güncel km, ortalama km/gün, "Km güncelle"; kalemler (ad, kural "10.000 km / 12 ay", kalan km/süre, tahmini tarih, doluluk çubuğu, durum rengi); kaleme dokununca düzenleme (km aralığı, ay aralığı, son yapıldığı km ve tarih, bildirim açık/kapalı, kaldır); "Kalem ekle".
-14. **Bildirimler:** km'yi bildirimden güncelleme, bakım yaklaşıyor, gecikti, poliçe bitiyor.
+14. **Bildirimler:** km'yi bildirimden güncelleme, bakım yaklaşıyor, gecikti, poliçe bitiyor, ay sonu özeti.
+15. **Yaklaşan gider tahmini:** garajda "Önümüzdeki 90 gün beklenen gider" şeridi → ekran: araç sekmeleri, aylık çubuklar, tarihi belli kalemler (poliçe, muayene, MTV, mevsimlik lastik, bakım, ceza; tutar = aynı türdeki son kayıt, yoksa "Bilinmiyor"), yakıt/şarj ortalaması (son 90 gün).
+16. **Gerçek maliyet:** araç detayındaki "Gerçek maliyet ›" kutusu → günlük / km başı / aylık / toplam; Son 12 ay · Eklediğimden beri; km başına kategori dağılımı; araç karşılaştırması. Kaza tutarları dahil değil.
+17. **Usta defterim:** servis geçmişinde bağlantı kartı → kayıtlardaki serviceName'den otomatik (Türkçe karakter/büyük-küçük farkı aynı usta), ziyaret, toplam, son ziyaret, işlemler, geçmiş; sıralama Harcama / Son ziyaret. Kayıt ekranında servis adı önerileri.
+18. **Ay sonu özeti:** her ayın 1'inde bildirim ("Eylül özetin hazır") → ekran: toplam, önceki aya göre %, yol, kayıt, ₺/100 km, öne çıkanlar, araç bazında; önceki/sonraki ay. İstatistik ekranında da kartı var.
 
 ## Bakım ve hatırlatma mantığı
 
-- Her aracın bakım planı: kalemler "X km **veya** Y ay, hangisi önce dolarsa". Araç eklenince türe ve yakıta göre hazır kalemler yazılır (değerler sadece öneri, kullanıcı düzenler). Elektrikli araçta yağ bakımı yok.
+- Her aracın bakım planı: kalemler "X km **veya** Y ay, hangisi önce dolarsa". Araç eklenince **sadece periyodik bakım** yazılır (aralık türe göre öneri; elektrikli araçta "genel kontrol"). Diğer kalemleri kullanıcı bakım planında "Kalem ekle" > "Hızlı ekle" ile ekler (triger, balata, filtreler, antifriz, buji, akü, klima).
 - Ortalama km/gün: son 90 günün km'li kayıtlarından ((son km − ilk km) ÷ gün). En az 2 km'li kayıt yoksa sadece süre bazlı hatırlatma.
 - Kalan km ÷ ortalama km/gün → tahmini tarih; bildirim o tarihten önceye kurulur (~1.000 km kala ve süre dolmadan önce).
 - 2–3 haftada bir "X'in kilometresi kaç?" bildirimi; bildirimden tek dokunuşla güncellenir, tahminler yeniden hesaplanır.
@@ -95,11 +99,12 @@ Ayrıntılı şema claude.ai'daki "Araç Takip · Veritabanı Şeması" doküman
 
 - Para **kuruş cinsinden tam sayı** (`amountKurus`), km tam sayı, tarihler `Timestamp`. Sabit seçenekler İngilizce anahtar, ekranda Türkçe.
 - `users/{uid}`: email?, authProviders, settings {notificationsEnabled, notifyTime "09:00", leadDays [30,7,1], kmPromptDays 14}
-- `users/{uid}/vehicles/{vehicleId}`: ownerUid, plate, plateNormalized, type (car|motorcycle|atv|van|truck), brand, model, year, fuelType (gasoline|diesel|lpg|gasoline_lpg|hybrid|plugin_hybrid|electric), currentKm, kmUpdatedAt, avgKmPerDay, inspectionDueDate?, trafficInsuranceEndDate?, cascoEndDate?, seasonalTireReminder, mtvReminder, sortOrder, archived
-- `…/vehicles/{vehicleId}/records/{recordId}`: ownerUid, vehicleId, category (fuel|charge|maintenance|tire|insurance|inspection|tax|fine|other), date, km?, amountKurus, fuelKind?, energyKwh?, chargeLocation? (home|ac|dc), jobs?[], serviceName?, note? (≤1000), dueDate?
+- `users/{uid}/vehicles/{vehicleId}`: ownerUid, plate, plateNormalized, type (car|motorcycle|atv|van|truck|minibus|bus), brand, model, year, fuelType (gasoline|diesel|lpg|gasoline_lpg|hybrid|plugin_hybrid|electric), currentKm, kmUpdatedAt, avgKmPerDay, inspectionDueDate?, trafficInsuranceEndDate?, cascoEndDate?, seasonalTireReminder, mtvReminder, sortOrder, archived
+- `…/vehicles/{vehicleId}/records/{recordId}`: ownerUid, vehicleId, category (fuel|charge|maintenance|tire|insurance|inspection|tax|fine|other), date, km?, amountKurus, fuelKind?, energyKwh?, chargeLocation? (home|ac|dc), jobs?[], serviceName? (≤80), note? (≤1000), dueDate?, insuranceKind? (traffic|casco; sigorta kaydında)
 - `…/vehicles/{vehicleId}/maintenanceItems/{itemId}`: presetKey?, name, intervalKm?, intervalMonths?, lastDoneKm?, lastDoneDate?, resetJobs[], notify, sortOrder
 - `…/vehicles/{vehicleId}/accidents/{accidentId}`: date, damageKurus, description (≤2000)
 - `users/{uid}/reminders/{reminderId}`: vehicleId, sourceType, sourceId?, dueDate, status (done|dismissed|snoozed), snoozedUntil?
+- `catalog/{car|motorcycle|atv|van|truck|minibus|bus}` (kök, herkese açık okunur, sadece konsoldan yazılır): { brands: [ {brand, models: [...]} ] }. Kaynak dosya `assets/data/vehicle_catalog.json` (Türkiye pazarı, ODMD 2025 marka listesi + eski/ikinci el markalar; 188 marka, ~1.290 model). Firebase'e geçince her tip bir belge olarak yüklenir, `VehicleCatalog.load()` önce Firestore'u, olmazsa gömülü dosyayı okur.
 - `shares/{shareId}` (kök, herkese açık okunur): ownerUid, vehicleId, code ("AT-7K2Q"), createdAt, expiresAt (+30 gün), revoked, snapshot
 - Elle tanımlanacak birleşik indeksler: records collection group (ownerUid + date), records (category + date desc).
 - Güvenlik kuralları: herkes sadece `users/{kendi uid}` dalına erişir; records/accidents yazımında tutar tam sayı ve ≥ 0, açıklama uzunluk sınırı; alt koleksiyonlar için genel `{sub}/{doc}` kuralı **kullanılmaz** (doğrulamayı boşa çıkarır); shares: `get` sadece revoked=false ve süresi dolmamışsa, `list` sadece sahibine. Kurallar Firebase Emulator testleriyle doğrulanmalı.
@@ -150,7 +155,8 @@ Ayrıntılı şema claude.ai'daki "Araç Takip · Veritabanı Şeması" doküman
 Uygulama **yerel (cihazda saklanan) modda tamamlandı**: tüm ekranlar, bakım planı, hatırlatma hesapları, yerel bildirimler, istatistik, kaza geçmişi, rapor ön izlemesi, test reklamları, hesap/veri silme.
 
 - Veri: `lib/data/app_store.dart` tüm veriyi shared_preferences'ta tek JSON olarak tutar. Firebase'e geçişte sadece bu sınıfın load/_save kısmı Firestore'a bağlanacak; modeller (`lib/data/models.dart`) Firestore şemasıyla birebir aynı.
-- Klasörler: `lib/core` (tema, biçimler, düzen), `lib/data` (modeller, hazır bakım kalemleri, depo), `lib/logic` (km, bakım durumu, hatırlatmalar, istatistik), `lib/services` (bildirim, reklam), `lib/ui` (shell, screens, widgets).
+- Klasörler: `lib/core` (tema, biçimler, düzen), `lib/data` (modeller, hazır bakım kalemleri, marka/model kataloğu, depo), `lib/logic` (km, bakım durumu, hatırlatmalar, istatistik, gider tahmini `forecast.dart`, gerçek maliyet `true_cost.dart`, usta defteri `workshops.dart`, ay özeti `month_summary.dart`), `lib/services` (bildirim, reklam), `lib/ui` (shell, screens, widgets).
+- Testler: `test/widget_test.dart`, `test/features_test.dart` (`flutter test`).
 - Henüz yapılmayanlar (Firebase aşaması): isimsiz giriş + Google/Apple/e-posta bağlantısıyla hesap bağlama, Firestore senkronu, rapor bağlantısı paylaşma (shares + app links + hosting/rapor.html), hesap silmede bulut verisinin silinmesi. Arayüzde bu yerler "bulut kurulumu tamamlanınca açılacak" notu gösteriyor (`showLinkAccountSheet`, `ReportScreen`).
 - Yayın öncesi: AdMob test kimliklerini gerçekleriyle değiştir (AndroidManifest, Info.plist, `ad_service.dart`), KVKK/gizlilik metinlerini ve destek e-postasını doldur (`settings_screen.dart`), uygulama ikonu ve imza ayarı.
 - Firebase dosyaları hazır: `firestore.rules`, `firestore.indexes.json`, `firebase.json`, `hosting/rapor.html`.

@@ -9,6 +9,7 @@ import '../data/app_store.dart';
 import '../services/notification_service.dart';
 import 'screens/garage_screen.dart';
 import 'screens/history_tab.dart';
+import 'screens/month_summary_screen.dart';
 import 'screens/record_add_screen.dart';
 import 'screens/reminders_screen.dart';
 import 'screens/stats_screen.dart';
@@ -45,6 +46,12 @@ class _ShellState extends State<Shell> {
     if (p.startsWith('km:')) {
       final v = StoreScope.read(context).vehicle(p.substring(3));
       if (v != null) showKmDialog(context, v);
+    } else if (p.startsWith('summary:')) {
+      final parts = p.substring(8).split('-');
+      final y = int.tryParse(parts.first);
+      final m = parts.length > 1 ? int.tryParse(parts[1]) : null;
+      Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => MonthSummaryScreen(month: y == null || m == null ? null : DateTime(y, m))));
     } else {
       setState(() => _tab = 1);
     }

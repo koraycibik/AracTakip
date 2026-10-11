@@ -205,7 +205,7 @@ class AppStore extends ChangeNotifier {
     final presets = maintenancePresetsFor(v.type, v.fuelType);
     for (var i = 0; i < presets.length; i++) {
       final p = presets[i];
-      final isPeriodic = p.key == 'periodic' || p.key == 'general_check';
+      final isPeriodic = p.key == 'periodic';
       _items.add(MaintenanceItem(
         id: newId(),
         vehicleId: v.id,

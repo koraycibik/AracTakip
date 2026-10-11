@@ -9,9 +9,9 @@ import '../../core/theme.dart';
 import '../../data/app_store.dart';
 import '../../data/models.dart';
 import '../../logic/maintenance.dart';
-import '../../logic/reminders.dart';
 import '../widgets/common.dart';
 import '../widgets/dialogs.dart';
+import 'forecast_screen.dart';
 import 'reminders_screen.dart';
 import 'settings_screen.dart';
 import 'vehicle_detail_screen.dart';
@@ -135,14 +135,15 @@ class _GarageList extends StatelessWidget {
             ),
           )
         else ...[
-          _FeaturedCard(
-            vehicle: vehicles.first,
-            selected: selectedId == vehicles.first.id,
-            onTap: () => onOpen(vehicles.first),
-          ),
-          for (final v in vehicles.skip(1)) ...[
-            const SizedBox(height: 10),
-            _VehicleRow(vehicle: v, selected: selectedId == v.id, onTap: () => onOpen(v)),
+          const ForecastStrip(),
+          const SizedBox(height: 12),
+          for (var i = 0; i < vehicles.length; i++) ...[
+            if (i > 0) const SizedBox(height: 12),
+            _VehicleCard(
+              vehicle: vehicles[i],
+              selected: selectedId == vehicles[i].id,
+              onTap: () => onOpen(vehicles[i]),
+            ),
           ],
           const SizedBox(height: 12),
           _AddVehicleButton(onTap: onAdd),
@@ -205,9 +206,10 @@ class _LinkCard extends StatelessWidget {
   }
 }
 
-/// Öne çıkan araç kartı (lacivert, plaka, kalan süre halkaları).
-class _FeaturedCard extends StatelessWidget {
-  const _FeaturedCard({required this.vehicle, required this.onTap, this.selected = false});
+/// Araç kartı (lacivert, plaka, 3 halka: bakım, trafik sigortası, muayene).
+/// Garajdaki her araç bu kartla gösterilir.
+class _VehicleCard extends StatelessWidget {
+  const _VehicleCard({required this.vehicle, required this.onTap, this.selected = false});
   final Vehicle vehicle;
   final VoidCallback onTap;
   final bool selected;
@@ -215,7 +217,24 @@ class _FeaturedCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
-    final rems = store.remindersFor(vehicle.id).take(3).toList();
+    final v = vehicle;
+
+    // En yakın bakım kalemi (geciken önce, sonra en erken tahmini tarih).
+    MaintenanceStatus? maint;
+    for (final m in store.maintenanceFor(v)) {
+      if (maint == null) {
+        maint = m;
+        continue;
+      }
+      if (m.state == DueState.overdue && maint.state != DueState.overdue) {
+        maint = m;
+        continue;
+      }
+      if (maint.state == DueState.overdue && m.state != DueState.overdue) continue;
+      final a = m.estimatedDue;
+      final b = maint.estimatedDue;
+      if (a != null && (b == null || a.isBefore(b))) maint = m;
+    }
 
     return Material(
       color: AppColors.navy,
@@ -246,51 +265,42 @@ class _FeaturedCard extends StatelessWidget {
               Positioned(
                 right: 14,
                 top: 30,
-                child: Icon(vehicleIcon(vehicle.type), size: 92, color: const Color(0x38FFFFFF)),
+                child: Icon(vehicleIcon(v.type), size: 92, color: const Color(0x38FFFFFF)),
               ),
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    PlateBadge(vehicle.plate),
+                    PlateBadge(v.plate),
                     const SizedBox(height: 10),
-                    Text(vehicle.title,
+                    Text(v.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: display(22, weight: FontWeight.w700, color: Colors.white)),
                     Text(
                       [
-                        if (vehicle.year != null) '${vehicle.year}',
-                        vehicle.fuelType.label,
-                        '${thousands(vehicle.currentKm)} km',
+                        if (v.year != null) '${v.year}',
+                        v.fuelType.label,
+                        '${thousands(v.currentKm)} km',
                       ].join(' · '),
                       style: body(13, color: AppColors.navySoft),
                     ),
                     const SizedBox(height: 16),
                     Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
                       decoration: BoxDecoration(
                         color: const Color(0x14FFFFFF),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: rems.isEmpty
-                          ? Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.task_alt, color: AppColors.ringGreen, size: 20),
-                                const SizedBox(width: 8),
-                                Text('Yaklaşan bir şey yok',
-                                    style: body(14, weight: FontWeight.w600, color: Colors.white)),
-                              ],
-                            )
-                          : Row(
-                              children: [
-                                for (final r in rems)
-                                  Expanded(child: _RingItem(reminder: r)),
-                                for (var i = rems.length; i < 3; i++) const Expanded(child: SizedBox()),
-                              ],
-                            ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: _maintRing(maint)),
+                          Expanded(child: _dateRing('Trafik sigortası', v.trafficInsuranceEndDate)),
+                          Expanded(child: _dateRing('Muayene', v.inspectionDueDate)),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -301,114 +311,97 @@ class _FeaturedCard extends StatelessWidget {
       ),
     );
   }
+
+  /// Bakım: halkada kalan ay, altında kalan km.
+  Widget _maintRing(MaintenanceStatus? m) {
+    if (m == null) {
+      return const _DashRing(label: 'Bakım', center: '—', sub: 'Plan yok', value: 0, state: null);
+    }
+    String center;
+    if (m.state == DueState.overdue) {
+      center = '!';
+    } else if (m.estimatedDue != null) {
+      center = timeLeftShort(m.estimatedDue!);
+    } else {
+      center = '—';
+    }
+    String sub;
+    final km = m.kmRemaining;
+    if (km != null) {
+      sub = km <= 0 ? '${thousands(-km)} km geçti' : '${thousands(km)} km';
+    } else if (m.dueByMonths != null) {
+      sub = timeLeft(m.dueByMonths!);
+    } else {
+      sub = '—';
+    }
+    return _DashRing(label: 'Bakım', center: center, sub: sub, value: m.used, state: m.state);
+  }
+
+  /// Tarihli kalem: halkada kalan süre, altında tarih.
+  Widget _dateRing(String label, DateTime? date) {
+    if (date == null) {
+      return _DashRing(label: label, center: '+', sub: 'Tarih ekle', value: 0, state: null);
+    }
+    final days = daysBetween(DateTime.now(), date);
+    final state = days < 0
+        ? DueState.overdue
+        : days <= 30
+            ? DueState.soon
+            : DueState.ok;
+    final value = days < 0 ? 1.0 : (1 - days / 365).clamp(0.05, 1.0).toDouble();
+    return _DashRing(
+      label: label,
+      center: days < 0 ? '!' : timeLeftShort(date),
+      sub: dateNumeric(date),
+      value: value,
+      state: state,
+    );
+  }
 }
 
-class _RingItem extends StatelessWidget {
-  const _RingItem({required this.reminder});
-  final ReminderItem reminder;
+class _DashRing extends StatelessWidget {
+  const _DashRing({
+    required this.label,
+    required this.center,
+    required this.sub,
+    required this.value,
+    required this.state,
+  });
+  final String label;
+  final String center;
+  final String sub;
+  final double value;
+
+  /// null: veri yok (soluk halka)
+  final DueState? state;
 
   @override
   Widget build(BuildContext context) {
-    final days = reminder.daysLeft;
-    final value = reminder.isOverdue ? 1.0 : (1 - (days / 365)).clamp(0.05, 1.0);
-    final color = switch (reminder.state) {
+    final color = switch (state) {
       DueState.overdue => const Color(0xFFFF6B6B),
       DueState.soon => AppColors.ringOrange,
       DueState.ok => AppColors.ringGreen,
+      null => const Color(0x40FFFFFF),
+    };
+    final subColor = switch (state) {
+      DueState.overdue => const Color(0xFFFFA3A3),
+      DueState.soon => const Color(0xFFFFC27A),
+      _ => Colors.white,
     };
     return Column(
       children: [
-        RingProgress(
-          value: value.toDouble(),
-          color: color,
-          center: reminder.isOverdue ? '!' : timeLeftShort(reminder.dueDate),
-          size: 54,
-        ),
+        RingProgress(value: value, color: color, center: center, size: 56),
         const SizedBox(height: 6),
-        Text(
-          _shortTitle(reminder),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: body(12, color: AppColors.navySoft),
-        ),
+        Text(label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: body(12, color: AppColors.navySoft)),
+        Text(sub,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: body(12, weight: FontWeight.w700, color: subColor)),
       ],
     );
-  }
-
-  String _shortTitle(ReminderItem r) {
-    switch (r.kind) {
-      case ReminderKind.inspection:
-        return 'Muayene';
-      case ReminderKind.trafficInsurance:
-        return 'Trafik sig.';
-      case ReminderKind.casco:
-        return 'Kasko';
-      case ReminderKind.mtv:
-        return 'MTV';
-      case ReminderKind.seasonalTire:
-        return r.title.startsWith('Kış') ? 'Kış lastiği' : 'Yaz lastiği';
-      case ReminderKind.maintenance:
-        return r.title.split(' (').first;
-      case ReminderKind.recordDue:
-        return 'Ceza';
-    }
-  }
-}
-
-class _VehicleRow extends StatelessWidget {
-  const _VehicleRow({required this.vehicle, required this.onTap, this.selected = false});
-  final Vehicle vehicle;
-  final VoidCallback onTap;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    final store = StoreScope.of(context);
-    final rems = store.remindersFor(vehicle.id);
-    final next = rems.isEmpty ? null : rems.first;
-    final color = vehicle.fuelType == FuelType.electric ? AppColors.catCharge : AppColors.catIns;
-
-    return AppCard(
-      radius: 22,
-      onTap: onTap,
-      border: selected ? Border.all(color: AppColors.accent, width: 2.5) : null,
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(16)),
-            child: Icon(vehicleIcon(vehicle.type), color: Colors.white, size: 26),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(vehicle.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: display(15, weight: FontWeight.w700)),
-                Text('${vehicle.plate} · ${vehicle.fuelType.label} · ${thousands(vehicle.currentKm)} km',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: body(12, color: AppColors.inkSoft)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          if (next == null || next.state == DueState.ok)
-            const StatusPill('Güncel', DueState.ok)
-          else
-            StatusPill(_pillText(next), next.state),
-        ],
-      ),
-    );
-  }
-
-  String _pillText(ReminderItem r) {
-    final t = r.title.split(' ').first;
-    return '$t ${r.badgeText}';
   }
 }
 

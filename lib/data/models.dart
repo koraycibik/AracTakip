@@ -27,7 +27,9 @@ enum VehicleType {
   motorcycle('motorcycle', 'Motosiklet'),
   atv('atv', 'ATV'),
   van('van', 'Kamyonet'),
-  truck('truck', 'Kamyon');
+  truck('truck', 'Kamyon'),
+  minibus('minibus', 'Minibüs'),
+  bus('bus', 'Otobüs');
 
   const VehicleType(this.key, this.label);
   final String key;
@@ -271,6 +273,7 @@ class ExpenseRecord {
     this.serviceName,
     this.note,
     this.dueDate,
+    this.insuranceKind,
     required this.createdAt,
   }) : jobs = jobs ?? [];
 
@@ -291,6 +294,9 @@ class ExpenseRecord {
 
   /// Ceza son ödeme tarihi gibi hatırlatma tarihi.
   DateTime? dueDate;
+
+  /// Sigorta kaydında: 'traffic' (trafik sigortası) veya 'casco' (kasko).
+  String? insuranceKind;
   final DateTime createdAt;
 
   /// Listede gösterilecek başlık.
@@ -310,6 +316,8 @@ class ExpenseRecord {
       case RecordCategory.tire:
         return 'Lastik';
       case RecordCategory.insurance:
+        if (insuranceKind == 'traffic') return 'Trafik sigortası';
+        if (insuranceKind == 'casco') return 'Kasko';
         return 'Sigorta / kasko';
       case RecordCategory.inspection:
         return 'Araç muayenesi';
@@ -338,6 +346,7 @@ class ExpenseRecord {
         'serviceName': serviceName,
         'note': note,
         'dueDate': _iso(dueDate),
+        'insuranceKind': insuranceKind,
         'createdAt': _iso(createdAt),
       };
 
@@ -355,6 +364,7 @@ class ExpenseRecord {
         serviceName: j['serviceName'] as String?,
         note: j['note'] as String?,
         dueDate: _date(j['dueDate']),
+        insuranceKind: j['insuranceKind'] as String?,
         createdAt: _date(j['createdAt']) ?? DateTime.now(),
       );
 }
