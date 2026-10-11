@@ -163,7 +163,7 @@ class ReportScreen extends StatelessWidget {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Bu, alıcının göreceği raporun ön izlemesi. Bağlantıyla paylaşma bulut kurulumu tamamlanınca açılacak; alıcı bağlantıyı Araç Takip uygulamasında açacak.',
+                            'Bu, alıcının göreceği raporun ön izlemesi. Bağlantıyla paylaşma bulut kurulumu tamamlanınca açılacak; alıcı bağlantıyı Tekerim uygulamasında açacak.',
                             style: body(13, weight: FontWeight.w600, color: const Color(0xFF1B3FA8)),
                           ),
                         ),

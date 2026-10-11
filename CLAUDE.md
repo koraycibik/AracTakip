@@ -1,4 +1,4 @@
-# Araç Takip — Proje Bağlamı
+# Tekerim (eski çalışma adı: Araç Takip) — Proje Bağlamı
 
 Bu dosya, claude.ai'daki planlama sohbetinde verilen tüm kararların özetidir. Her oturumun başında oku ve bu kararlara uy. Bir karar değişirse bu dosyayı da güncelle.
 
@@ -13,6 +13,10 @@ Bu dosya, claude.ai'daki planlama sohbetinde verilen tüm kararların özetidir.
 
 Kişinin araç(lar)ını takip ettiği mobil uygulama: muayene, trafik sigortası, kasko, MTV, lastik, bakım, yakıt/şarj ve diğer giderler, kaza/hasar geçmişi, hatırlatma bildirimleri, istatistikler ve paylaşılabilir araç geçmişi raporu.
 
+- **Uygulama adı: Tekerim.** Play'de görünen ad: "Tekerim: Araç Bakım ve Masraf". (Garajım, Plakam, Otodefter, Otokarne vb. elendi; Otodefter ve Otokarne Play'de dolu.)
+- Logo: lacivert `#23295F` zemin, beyaz teker, amber `#FFB020` ilerleme yayı (kalan süre halkası), beyaz göbek ve 5 yarı saydam jant teli. Kodda `lib/ui/widgets/brand.dart` (`TekerimMark`, `kAppName`); karşılama ekranında kullanılıyor.
+- İkon dosyaları: Android `res/mipmap-*/ic_launcher.png` (eski cihazlar), uyarlanabilir ikon `mipmap-anydpi-v26/ic_launcher.xml` (+ `ic_launcher_foreground`, `ic_launcher_monochrome`, `values/colors.xml`), iOS `AppIcon.appiconset` (tam kare, saydamlık yok). Play görselleri `store/play_icon_512.png`, `store/play_feature_1024x500.png`.
+- Paket kimliği `com.koraycibik.arac_takip` değişmez (kullanıcı görmez, yayından sonra değiştirilemez).
 - Platform: Android + iOS, tek kod tabanı.
 - Gelir: **sadece reklam** (AdMob). Premium/abonelik yok.
 - Kullanıcıdan **hiçbir şekilde fotoğraf/dosya alınmaz** (OCR, belge kasası yok).

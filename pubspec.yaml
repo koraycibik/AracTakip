@@ -1,5 +1,5 @@
 name: arac_takip
-description: "Araç Takip: muayene, sigorta, bakım ve masraf takibi."
+description: "Tekerim: araç bakım, masraf ve hatırlatma takibi."
 publish_to: 'none'
 
 version: 1.0.0+1

@@ -6,6 +6,7 @@ import '../../core/layout.dart';
 import '../../core/theme.dart';
 import '../../data/app_store.dart';
 import '../../services/notification_service.dart';
+import '../widgets/brand.dart';
 import '../widgets/common.dart';
 import '../widgets/dialogs.dart';
 
@@ -109,14 +110,12 @@ class _Hero extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: AppColors.accent,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(Icons.speed, color: AppColors.ink, size: 32),
+              Row(
+                children: [
+                  const TekerimMark(size: 56, background: false),
+                  const SizedBox(width: 10),
+                  Text(kAppName, style: display(26, weight: FontWeight.w800, color: Colors.white)),
+                ],
               ),
               const SizedBox(height: 20),
               Text('Aracının her şeyi,\ntek yerde.',

@@ -362,7 +362,7 @@ class _Row extends StatelessWidget {
   }
 }
 
-const _kvkkSummary = '''Araç Takip, sana hizmet verebilmek için yalnızca senin girdiğin araç bilgilerini (plaka, marka, model, kilometre, önemli tarihler), gider kayıtlarını, bakım planını ve kaza açıklamalarını saklar.
+const _kvkkSummary = '''Tekerim, sana hizmet verebilmek için yalnızca senin girdiğin araç bilgilerini (plaka, marka, model, kilometre, önemli tarihler), gider kayıtlarını, bakım planını ve kaza açıklamalarını saklar.
 
 Fotoğraf, belge, konum veya rehber gibi bilgiler istenmez ve toplanmaz.
 

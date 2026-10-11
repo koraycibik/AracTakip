@@ -15,7 +15,7 @@ class AracTakipApp extends StatelessWidget {
     return StoreScope(
       store: store,
       child: MaterialApp(
-        title: 'Araç Takip',
+        title: 'Tekerim',
         debugShowCheckedModeBanner: false,
         theme: buildTheme(),
         locale: const Locale('tr', 'TR'),
