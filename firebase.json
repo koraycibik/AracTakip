@@ -1,0 +1,18 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "hosting": {
+    "public": "hosting",
+    "ignore": ["firebase.json", "**/.*"],
+    "rewrites": [
+      { "source": "/r/**", "destination": "/rapor.html" }
+    ]
+  },
+  "emulators": {
+    "firestore": { "port": 8080 },
+    "auth": { "port": 9099 },
+    "ui": { "enabled": true }
+  }
+}

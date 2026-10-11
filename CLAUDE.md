@@ -6,7 +6,7 @@ Bu dosya, claude.ai'daki planlama sohbetinde verilen tüm kararların özetidir.
 
 - Türkçe konuş. Kodu ve teknik terimleri gerektiği kadar açıkla.
 - Mobil geliştirme tecrübesi yok. Her adımı küçük tut, ne yaptığını ve nedenini kısaca anlat, komutları tek tek ver.
-- Bilgisayar: Windows. Git 2.51 kurulu. Repo: https://github.com/koraycibik/AracTakip (`main`). Bu repoda commit kimliği yerel ayarlı: `Koray Cibik <koraycibik0115@gmail.com>` (global ayar iş hesabı, değiştirme). Test için gerçek bir Android telefon var (USB hata ayıklama ile).
+- Bilgisayar: Windows. Git 2.51 kurulu. Test için gerçek bir Android telefon var (USB hata ayıklama ile).
 - iOS simülatörü yok (Mac yok). iOS sürümü daha sonra bulut derleme (ör. Codemagic) ile çıkarılacak; kod iOS uyumlu yazılmalı.
 
 ## Ürün
@@ -22,7 +22,10 @@ Kişinin araç(lar)ını takip ettiği mobil uygulama: muayene, trafik sigortas�
 
 - Flutter (Dart), Firebase: Authentication, Cloud Firestore, Hosting. Ayrı backend sunucusu yok.
 - Cloud Functions kullanılmıyor (ücretli plan gerektirir). Her şey istemci + Firestore güvenlik kuralları.
-- Önerilen paketler: `firebase_core`, `firebase_auth`, `cloud_firestore`, `google_sign_in`, `sign_in_with_apple`, `google_mobile_ads`, `flutter_local_notifications`, `timezone`, `shared_preferences`, `flutter_riverpod` (durum yönetimi), `go_router`, `intl` (tr_TR biçimleri), `fl_chart` (grafikler), `app_links` (paylaşım bağlantıları). Sürümleri eklerken pub.dev'den güncelini kontrol et.
+- Şu an kullanılan paketler: `shared_preferences`, `flutter_local_notifications` (v22: tüm metotlar named parametreli), `timezone`, `google_mobile_ads` (v9), `flutter_localizations` (SDK). Fontlar `assets/fonts` içinde gömülü (statik ağırlıklar), google_fonts paketi yok.
+- Durum yönetimi: paket yok. Tek `AppStore` (ChangeNotifier) + `StoreScope` (InheritedNotifier). Ekranlar `StoreScope.of(context)` ile dinler, butonlarda `StoreScope.read(context)`.
+- Grafikler ve halkalar elle çizildi (fl_chart yok). Gezinme `Navigator.push` ile (go_router yok).
+- Firebase aşamasında eklenecek: `firebase_core`, `firebase_auth`, `cloud_firestore`, `google_sign_in`, `sign_in_with_apple`, `app_links`, `share_plus`. Sürümleri eklerken güncelini kontrol et.
 
 ## Giriş ve hesap
 
@@ -106,11 +109,11 @@ Ayrıntılı şema claude.ai'daki "Araç Takip · Veritabanı Şeması" doküman
 
 - Sabit telefon boyutu yok; genişliğe göre düzen:
   - < 600 dp: tek sütun, alttaki yüzen menü.
-  - 600–840 dp (Fold açık dikey): solda garaj listesi, sağda seçili araç; menü yana (NavigationRail).
-  - > 840 dp (Fold açık yatay, tablet): iki bölme, kayıt formu sağ panel.
+  - 600–840 dp (Fold açık dikey): yan menü (koyu, 88 dp).
+  - > 840 dp (Fold açık yatay, tablet): yan menü + garajda iki bölme (solda liste, sağda seçili araç; `TwoPane` menteşeyi hesaba katar).
 - Hiçbir ekranda sabit yükseklik yok; her ekran kaydırılabilir.
 - Menteşe: `MediaQuery.displayFeatures` ile okunur, içerik menteşeye bölünmez.
-- Katlama/açmada form durumu kaybolmaz (durum Riverpod'da).
+- Katlama/açmada form durumu kaybolmaz (form durumu StatefulWidget'larda, veri AppStore'da).
 - Büyük yazı ayarıyla (1,3×'e kadar) taşma olmamalı.
 - Test: gerçek telefon + Android Studio emülatöründe Fold ve resizable profiller.
 
@@ -142,9 +145,19 @@ Ayrıntılı şema claude.ai'daki "Araç Takip · Veritabanı Şeması" doküman
 - Kalan süre halkaları (dairesel ilerleme), kategori ikonları renkli kare içinde, emoji yok.
 - Tasarım tuvali claude.ai'da: "Araç Takip Uygulaması Tasarımları" (16 ekran).
 
+## Mevcut durum (11 Ekim 2026)
+
+Uygulama **yerel (cihazda saklanan) modda tamamlandı**: tüm ekranlar, bakım planı, hatırlatma hesapları, yerel bildirimler, istatistik, kaza geçmişi, rapor ön izlemesi, test reklamları, hesap/veri silme.
+
+- Veri: `lib/data/app_store.dart` tüm veriyi shared_preferences'ta tek JSON olarak tutar. Firebase'e geçişte sadece bu sınıfın load/_save kısmı Firestore'a bağlanacak; modeller (`lib/data/models.dart`) Firestore şemasıyla birebir aynı.
+- Klasörler: `lib/core` (tema, biçimler, düzen), `lib/data` (modeller, hazır bakım kalemleri, depo), `lib/logic` (km, bakım durumu, hatırlatmalar, istatistik), `lib/services` (bildirim, reklam), `lib/ui` (shell, screens, widgets).
+- Henüz yapılmayanlar (Firebase aşaması): isimsiz giriş + Google/Apple/e-posta bağlantısıyla hesap bağlama, Firestore senkronu, rapor bağlantısı paylaşma (shares + app links + hosting/rapor.html), hesap silmede bulut verisinin silinmesi. Arayüzde bu yerler "bulut kurulumu tamamlanınca açılacak" notu gösteriyor (`showLinkAccountSheet`, `ReportScreen`).
+- Yayın öncesi: AdMob test kimliklerini gerçekleriyle değiştir (AndroidManifest, Info.plist, `ad_service.dart`), KVKK/gizlilik metinlerini ve destek e-postasını doldur (`settings_screen.dart`), uygulama ikonu ve imza ayarı.
+- Firebase dosyaları hazır: `firestore.rules`, `firestore.indexes.json`, `firebase.json`, `hosting/rapor.html`.
+
 ## Çalışma yolu (önerilen sıra)
 
-1. Ortam kurulumu: Flutter SDK (C:\src\flutter, kuruldu: 3.47.7), Android Studio, `flutter doctor`, telefonda USB hata ayıklama.
+1. Ortam kurulumu: Flutter SDK (C:\dev), Android Studio, `flutter doctor`, telefonda USB hata ayıklama.
 2. `flutter create` ile proje; klasör yapısı (feature bazlı: `lib/features/garage`, `vehicle`, `records`, `maintenance`, `stats`, `reminders`, `share`, `settings`, `auth`; `lib/core` tema, router, firebase).
 3. Tema (renkler, fontlar), router, alt menü; sahte verilerle ekran iskeletleri.
 4. Firebase projesi, FlutterFire CLI, anonymous auth, Firestore modelleri ve repository'ler.

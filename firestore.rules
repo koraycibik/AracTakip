@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+
+      match /vehicles/{vehicleId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.ownerUid == uid
+          && request.resource.data.type in ['car', 'motorcycle', 'atv', 'van', 'truck'];
+
+        match /records/{recordId} {
+          allow read, delete: if isOwner(uid);
+          allow create, update: if isOwner(uid)
+            && request.resource.data.ownerUid == uid
+            && request.resource.data.amountKurus is int
+            && request.resource.data.amountKurus >= 0
+            && (!('note' in request.resource.data)
+                || request.resource.data.note == null
+                || request.resource.data.note.size() <= 1000);
+        }
+        match /maintenanceItems/{itemId} {
+          allow read, write: if isOwner(uid);
+        }
+        match /accidents/{accidentId} {
+          allow read, delete: if isOwner(uid);
+          allow create, update: if isOwner(uid)
+            && request.resource.data.damageKurus is int
+            && request.resource.data.damageKurus >= 0
+            && request.resource.data.description.size() <= 2000;
+        }
+      }
+
+      match /reminders/{reminderId} {
+        allow read, write: if isOwner(uid);
+      }
+    }
+
+    // "Tüm araçlar" istatistiği: collection group sorgusu
+    match /{path=**}/records/{recordId} {
+      allow read: if signedIn() && resource.data.ownerUid == request.auth.uid;
+    }
+
+    // Paylaşılan araç raporu: bağlantıyı bilen herkes 30 gün okuyabilir.
+    match /shares/{shareId} {
+      allow get: if resource.data.revoked == false
+        && request.time < resource.data.expiresAt;
+      allow list: if signedIn() && resource.data.ownerUid == request.auth.uid;
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.expiresAt <= request.time + duration.value(31, 'd');
+      allow update, delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+    }
+  }
+}
