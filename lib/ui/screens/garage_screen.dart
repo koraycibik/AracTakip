@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../../core/features.dart';
 import '../../core/format.dart';
 import '../../core/layout.dart';
 import '../../core/theme.dart';
@@ -120,7 +121,7 @@ class _GarageList extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 14),
-        if (showLink) ...[
+        if (showLink && kCloudEnabled) ...[
           _LinkCard(onTap: () => showLinkAccountSheet(context)),
           const SizedBox(height: 14),
         ],

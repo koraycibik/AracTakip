@@ -1,0 +1,6 @@
+# Bu dosyanın bir kopyasını aynı klasörde "key.properties" adıyla oluştur ve kendi bilgilerini yaz.
+# key.properties git'e girmez (android/.gitignore). Şifreleri kimseyle paylaşma.
+storePassword=ANAHTAR_DEPOSU_SIFREN
+keyPassword=ANAHTAR_SIFREN
+keyAlias=upload
+storeFile=C:/Users/koray.cibik/tekerim-upload.jks

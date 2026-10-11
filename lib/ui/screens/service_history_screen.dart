@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../../core/features.dart';
 import '../../core/format.dart';
 import '../../core/layout.dart';
 import '../../core/theme.dart';
@@ -81,13 +82,15 @@ class _ServiceHistoryBodyState extends State<ServiceHistoryBody> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (widget.header != null) ...[widget.header!, const SizedBox(height: 12)],
-                _ReportCard(
-                  serviceCount: serviceCount,
-                  accidentCount: store.accidentsFor(v.id).length,
-                  onShare: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => ReportScreen(vehicleId: v.id))),
-                ),
-                const SizedBox(height: 10),
+                if (kCloudEnabled) ...[
+                  _ReportCard(
+                    serviceCount: serviceCount,
+                    accidentCount: store.accidentsFor(v.id).length,
+                    onShare: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => ReportScreen(vehicleId: v.id))),
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 const WorkshopsLinkCard(),
                 const SizedBox(height: 14),
                 SizedBox(

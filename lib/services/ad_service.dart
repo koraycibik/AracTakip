@@ -24,7 +24,15 @@ class AdService {
   InterstitialAd? _ad;
   bool _loading = false;
 
+  // Gerçek reklam birimleri: AdMob > Uygulamalar > Tekerim > Reklam birimleri > Geçiş reklamı.
+  // Boş kaldıkça (ve hata ayıklama sırasında her zaman) Google'ın test reklamı gösterilir.
+  // Kapalı test boyunca test reklamı kalması önerilir; gerçek kimlik üretim yayınından önce yazılır.
+  static const _realAndroidUnit = '';
+  static const _realIosUnit = '';
+
   String get _unitId {
+    final real = Platform.isIOS ? _realIosUnit : _realAndroidUnit;
+    if (kReleaseMode && real.isNotEmpty) return real;
     // Google test reklam birimleri (gerçek gelir getirmez, güvenle denenebilir).
     if (Platform.isIOS) return 'ca-app-pub-3940256099942544/4411468910';
     return 'ca-app-pub-3940256099942544/1033173712';

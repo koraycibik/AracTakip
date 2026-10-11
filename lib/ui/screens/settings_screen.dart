@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../../core/features.dart';
 import '../../core/layout.dart';
 import '../../core/theme.dart';
 import '../../data/app_store.dart';
@@ -34,7 +35,7 @@ class SettingsScreen extends StatelessWidget {
                       color: AppColors.navy,
                       radius: 22,
                       padding: const EdgeInsets.all(16),
-                      onTap: () => showLinkAccountSheet(context),
+                      onTap: kCloudEnabled ? () => showLinkAccountSheet(context) : null,
                       child: Row(
                         children: [
                           Container(
@@ -56,7 +57,7 @@ class SettingsScreen extends StatelessWidget {
                                     const Icon(Icons.cloud_off_outlined, size: 14, color: AppColors.navySoft),
                                     const SizedBox(width: 6),
                                     Expanded(
-                                      child: Text('Veriler bu telefonda · hesabını bağla',
+                                      child: Text(kCloudEnabled ? 'Veriler bu telefonda · hesabını bağla' : 'Veriler bu telefonda · yedekleme yakında',
                                           style: body(12, color: AppColors.navySoft)),
                                     ),
                                   ],
@@ -64,7 +65,7 @@ class SettingsScreen extends StatelessWidget {
                               ],
                             ),
                           ),
-                          const Icon(Icons.chevron_right, color: Colors.white),
+                          if (kCloudEnabled) const Icon(Icons.chevron_right, color: Colors.white),
                         ],
                       ),
                     ),

@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../../core/features.dart';
 import '../../core/layout.dart';
 import '../../core/theme.dart';
 import '../../data/app_store.dart';
@@ -54,11 +55,14 @@ class WelcomeScreen extends StatelessWidget {
                       onPressed: () => _start(context),
                     ),
                     const SizedBox(height: 6),
-                    TextButton(
-                      onPressed: () => showLinkAccountSheet(context),
-                      child: Text('Hesabım var, giriş yap',
-                          style: body(15, weight: FontWeight.w700, color: AppColors.link)),
-                    ),
+                    if (kCloudEnabled)
+                      TextButton(
+                        onPressed: () => showLinkAccountSheet(context),
+                        child: Text('Hesabım var, giriş yap',
+                            style: body(15, weight: FontWeight.w700, color: AppColors.link)),
+                      )
+                    else
+                      const SizedBox(height: 8),
                     const SizedBox(height: 4),
                     Text(
                       'Kayıt gerekmez. Devam ederek KVKK aydınlatma metnini ve gizlilik politikasını kabul etmiş olursun.',

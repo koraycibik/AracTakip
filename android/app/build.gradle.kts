@@ -1,8 +1,23 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// Mağaza imzası: android/key.properties dosyasından okunur (bu dosya git'e girmez).
+// Dosya yoksa (ör. sadece telefonda deneme yaparken) deneme anahtarıyla imzalanır.
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
+// AdMob uygulama kimliği. Gerçek kimlik (AdMob > Uygulamalar > Tekerim > Uygulama ayarları)
+// gelene kadar Google'ın test kimliği kullanılır. Üretim yayınından önce burası değişecek.
+val admobAppId = "ca-app-pub-3940256099942544~3347511713"
 
 android {
     namespace = "com.koraycibik.arac_takip"
@@ -19,15 +34,31 @@ android {
     defaultConfig {
         applicationId = "com.koraycibik.arac_takip"
         minSdk = maxOf(flutter.minSdkVersion, 24)
-        targetSdk = flutter.targetSdkVersion
+        // Google Play 31 Ağustos 2026'dan beri yeni uygulamalarda Android 16 (API 36) istiyor.
+        targetSdk = maxOf(flutter.targetSdkVersion, 36)
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["admobAppId"] = admobAppId
+    }
+
+    signingConfigs {
+        create("release") {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }
     }
 
     buildTypes {
         release {
-            // Mağazaya çıkmadan önce kendi imza ayarımızı ekleyeceğiz.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
