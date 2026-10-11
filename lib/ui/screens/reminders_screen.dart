@@ -174,7 +174,8 @@ class _NearestCard extends StatelessWidget {
           RingProgress(
             value: r.isOverdue ? 1 : (1 - days / 365).clamp(0.05, 1.0).toDouble(),
             color: color,
-            center: r.isOverdue ? '!' : timeLeftShort(r.dueDate),
+            center: timeLeftParts(r.dueDate).$1,
+            unit: timeLeftParts(r.dueDate).$2,
             size: 66,
             stroke: 7,
           ),

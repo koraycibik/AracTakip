@@ -144,6 +144,15 @@ String timeLeft(DateTime due, {DateTime? from}) {
   return '${(days / 365).floor()} yıl';
 }
 
+/// Halka içi: sayı ve birim ayrı ("9", "gün"), ("14", "ay"), ("2", "yıl"); bugün ("0", "gün"); geçmiş ("!", "gecikti").
+(String, String) timeLeftParts(DateTime due) {
+  final days = daysBetween(DateTime.now(), due);
+  if (days < 0) return ('!', 'gecikti');
+  if (days < 60) return ('$days', 'gün');
+  if (days < 730) return ('${(days / 30.4).round()}', 'ay');
+  return ('${(days / 365).floor()}', 'yıl');
+}
+
 /// Halka içinde kısa gösterim: "9g", "14a", "2y"
 String timeLeftShort(DateTime due) {
   final days = daysBetween(DateTime.now(), due);

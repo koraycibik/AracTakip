@@ -45,8 +45,8 @@ void main() {
     final cars = cat[VehicleType.car]!;
     final fiat = cars.firstWhere((b) => b.name == 'Fiat');
     expect(fiat.models.contains('Egea'), true);
-    expect(searchTr(cars.map((b) => b.name).toList(), 'citroen').first, 'Citroën');
-    expect(searchTr(cars.map((b) => b.name).toList(), 'mercedes benz').first, 'Mercedes-Benz');
+    expect(searchTr(cars.map((b) => b.name).toList(), 'citroen', (s) => s).first, 'Citroën');
+    expect(searchTr(cars.map((b) => b.name).toList(), 'mercedes benz', (s) => s).first, 'Mercedes-Benz');
   });
 
   test('normalizeTr Türkçe karakterleri ve boşlukları yok sayar', () {

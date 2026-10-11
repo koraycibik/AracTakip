@@ -10,6 +10,7 @@ import '../../core/theme.dart';
 import '../../data/app_store.dart';
 import '../../data/models.dart';
 import '../../logic/maintenance.dart';
+import '../../services/cloud_service.dart';
 import '../widgets/common.dart';
 import '../widgets/dialogs.dart';
 import 'forecast_screen.dart';
@@ -121,10 +122,16 @@ class _GarageList extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 14),
-        if (showLink && kCloudEnabled) ...[
-          _LinkCard(onTap: () => showLinkAccountSheet(context)),
-          const SizedBox(height: 14),
-        ],
+        if (showLink && kCloudEnabled)
+          ListenableBuilder(
+            listenable: CloudService.instance.user,
+            builder: (context, _) => CloudService.instance.isLinked
+                ? const SizedBox.shrink()
+                : Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: _LinkCard(onTap: () => showLinkAccountSheet(context)),
+                  ),
+          ),
         if (vehicles.isEmpty)
           AppCard(
             padding: const EdgeInsets.all(8),
@@ -136,8 +143,6 @@ class _GarageList extends StatelessWidget {
             ),
           )
         else ...[
-          const ForecastStrip(),
-          const SizedBox(height: 12),
           for (var i = 0; i < vehicles.length; i++) ...[
             if (i > 0) const SizedBox(height: 12),
             _VehicleCard(
@@ -148,6 +153,8 @@ class _GarageList extends StatelessWidget {
           ],
           const SizedBox(height: 12),
           _AddVehicleButton(onTap: onAdd),
+          const SizedBox(height: 12),
+          const ForecastStrip(),
           if (reminders.isNotEmpty) ...[
             const SizedBox(height: 16),
             SectionHeader(
@@ -303,6 +310,8 @@ class _VehicleCard extends StatelessWidget {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 10),
+                    _MonthTotalRow(total: store.monthTotal(v.id)),
                   ],
                 ),
               ),
@@ -319,10 +328,12 @@ class _VehicleCard extends StatelessWidget {
       return const _DashRing(label: 'Bakım', center: '—', sub: 'Plan yok', value: 0, state: null);
     }
     String center;
+    String? unit;
     if (m.state == DueState.overdue) {
       center = '!';
+      unit = 'gecikti';
     } else if (m.estimatedDue != null) {
-      center = timeLeftShort(m.estimatedDue!);
+      (center, unit) = timeLeftParts(m.estimatedDue!);
     } else {
       center = '—';
     }
@@ -335,7 +346,7 @@ class _VehicleCard extends StatelessWidget {
     } else {
       sub = '—';
     }
-    return _DashRing(label: 'Bakım', center: center, sub: sub, value: m.used, state: m.state);
+    return _DashRing(label: 'Bakım', center: center, unit: unit, sub: sub, value: m.used, state: m.state);
   }
 
   /// Tarihli kalem: halkada kalan süre, altında tarih.
@@ -350,12 +361,41 @@ class _VehicleCard extends StatelessWidget {
             ? DueState.soon
             : DueState.ok;
     final value = days < 0 ? 1.0 : (1 - days / 365).clamp(0.05, 1.0).toDouble();
+    final (center, unit) = timeLeftParts(date);
     return _DashRing(
       label: label,
-      center: days < 0 ? '!' : timeLeftShort(date),
+      center: center,
+      unit: unit,
       sub: dateNumeric(date),
       value: value,
       state: state,
+    );
+  }
+}
+
+/// Araç kartının altında: içinde bulunulan ayın toplam gideri.
+class _MonthTotalRow extends StatelessWidget {
+  const _MonthTotalRow({required this.total});
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final month = kMonthsLong[DateTime.now().month - 1];
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(color: const Color(0x14FFFFFF), borderRadius: BorderRadius.circular(16)),
+      child: Row(
+        children: [
+          const Icon(Icons.account_balance_wallet_outlined, size: 18, color: AppColors.accent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text('$month ayı gideri',
+                maxLines: 1, overflow: TextOverflow.ellipsis, style: body(13, color: AppColors.navySoft)),
+          ),
+          const SizedBox(width: 8),
+          Text(money(total), style: display(17, weight: FontWeight.w700, color: Colors.white)),
+        ],
+      ),
     );
   }
 }
@@ -367,9 +407,11 @@ class _DashRing extends StatelessWidget {
     required this.sub,
     required this.value,
     required this.state,
+    this.unit,
   });
   final String label;
   final String center;
+  final String? unit;
   final String sub;
   final double value;
 
@@ -391,7 +433,7 @@ class _DashRing extends StatelessWidget {
     };
     return Column(
       children: [
-        RingProgress(value: value, color: color, center: center, size: 56),
+        RingProgress(value: value, color: color, center: center, unit: unit, size: 64),
         const SizedBox(height: 6),
         Text(label,
             maxLines: 1,

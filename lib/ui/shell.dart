@@ -118,7 +118,7 @@ class _ShellState extends State<Shell> {
 const _navItems = [
   (Icons.home_outlined, 'Garaj'),
   (Icons.notifications_none, 'Hatırlatma'),
-  (Icons.bar_chart, 'İstatistik'),
+  (Icons.account_balance_wallet_outlined, 'Harcamalar'),
   (Icons.description_outlined, 'Geçmiş'),
 ];
 

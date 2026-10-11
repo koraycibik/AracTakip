@@ -72,7 +72,11 @@ class RingProgress extends StatelessWidget {
     this.stroke = 5,
     this.trackColor = const Color(0x26FFFFFF),
     this.textColor = Colors.white,
+    this.unit,
   });
+
+  /// Sayının altında küçük birim ("gün", "ay", "yıl").
+  final String? unit;
 
   /// 0..1 (dolu kısım)
   final double value;
@@ -95,8 +99,17 @@ class RingProgress extends StatelessWidget {
             fit: BoxFit.scaleDown,
             child: Padding(
               padding: const EdgeInsets.all(6),
-              child: Text(center,
-                  style: display(size * 0.28, weight: FontWeight.w700, color: textColor)),
+              child: unit == null
+                  ? Text(center, style: display(size * 0.28, weight: FontWeight.w700, color: textColor))
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(center,
+                            style: display(size * 0.3, weight: FontWeight.w700, color: textColor, height: 1.0)),
+                        Text(unit!,
+                            style: body(size * 0.17, weight: FontWeight.w600, color: textColor.withValues(alpha: 0.8), height: 1.1)),
+                      ],
+                    ),
             ),
           ),
         ),

@@ -33,6 +33,9 @@ class AppStore extends ChangeNotifier {
   /// Veri her değiştiğinde çağrılır (bildirimleri yeniden planlamak için).
   VoidCallback? onDataChanged;
 
+  /// Veri telefona kaydedildikten sonra çağrılır (buluta göndermek için).
+  VoidCallback? onPersisted;
+
   // -------------------------------------------------------------------------
   // Yükleme / kaydetme
   // -------------------------------------------------------------------------
@@ -62,23 +65,51 @@ class AppStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Tüm verinin JSON hâli (telefona kaydetme ve bulut senkronu aynı biçimi kullanır).
+  Map<String, dynamic> exportData() => {
+        'version': 1,
+        'vehicles': _vehicles.map((e) => e.toJson()).toList(),
+        'records': _records.map((e) => e.toJson()).toList(),
+        'maintenanceItems': _items.map((e) => e.toJson()).toList(),
+        'accidents': _accidents.map((e) => e.toJson()).toList(),
+        'reminderDecisions': _decisions.map((e) => e.toJson()).toList(),
+        'settings': settings.toJson(),
+      };
+
+  /// Bellekteki tüm veriyi [j] ile değiştirir (buluttan gelen veri için).
+  void replaceAll(Map<String, dynamic> j) {
+    List<Map<String, dynamic>> list(String k) => ((j[k] as List?) ?? [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+    _vehicles
+      ..clear()
+      ..addAll(list('vehicles').map(Vehicle.fromJson));
+    _records
+      ..clear()
+      ..addAll(list('records').map(ExpenseRecord.fromJson));
+    _items
+      ..clear()
+      ..addAll(list('maintenanceItems').map(MaintenanceItem.fromJson));
+    _accidents
+      ..clear()
+      ..addAll(list('accidents').map(Accident.fromJson));
+    _decisions
+      ..clear()
+      ..addAll(list('reminderDecisions').map(ReminderDecision.fromJson));
+    if (j['settings'] is Map) {
+      settings = AppSettings.fromJson(Map<String, dynamic>.from(j['settings'] as Map));
+    }
+    _changed();
+  }
+
   Future<void> _save() async {
-    final data = {
-      'version': 1,
-      'vehicles': _vehicles.map((e) => e.toJson()).toList(),
-      'records': _records.map((e) => e.toJson()).toList(),
-      'maintenanceItems': _items.map((e) => e.toJson()).toList(),
-      'accidents': _accidents.map((e) => e.toJson()).toList(),
-      'reminderDecisions': _decisions.map((e) => e.toJson()).toList(),
-      'settings': settings.toJson(),
-    };
-    await _prefs?.setString(_storageKey, jsonEncode(data));
+    await _prefs?.setString(_storageKey, jsonEncode(exportData()));
   }
 
   void _changed() {
     _cache.clear();
     notifyListeners();
-    unawaited(_save());
+    unawaited(_save().then((_) => onPersisted?.call()));
     onDataChanged?.call();
   }
 
@@ -411,6 +442,9 @@ class AppStore extends ChangeNotifier {
     notifyListeners();
     onDataChanged?.call();
   }
+
+  /// Bu telefonda hiç araç yok mu? (Yeni telefonda giriş akışı için.)
+  bool get isEmpty => _vehicles.isEmpty && _records.isEmpty;
 }
 
 /// Ekranların depoya erişimi: `StoreScope.of(context)` dinler ve yeniden çizer,

@@ -82,7 +82,7 @@ class _ServiceHistoryBodyState extends State<ServiceHistoryBody> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (widget.header != null) ...[widget.header!, const SizedBox(height: 12)],
-                if (kCloudEnabled) ...[
+                if (kShareEnabled) ...[
                   _ReportCard(
                     serviceCount: serviceCount,
                     accidentCount: store.accidentsFor(v.id).length,

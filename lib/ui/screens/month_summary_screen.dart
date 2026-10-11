@@ -1,4 +1,4 @@
-// 18 · Ay sonu özeti (her ayın 1'indeki bildirimden ya da İstatistik ekranından açılır).
+// 18 · Ay sonu özeti (her ayın 1'indeki bildirimden ya da Harcamalar ekranından açılır).
 
 import 'package:flutter/material.dart';
 
@@ -265,7 +265,7 @@ class _Tile extends StatelessWidget {
   }
 }
 
-/// İstatistik ekranındaki "Ay özeti" kartı.
+/// Harcamalar ekranındaki "Ay özeti" kartı.
 class MonthSummaryLinkCard extends StatelessWidget {
   const MonthSummaryLinkCard({super.key});
 

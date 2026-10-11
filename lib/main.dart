@@ -5,6 +5,7 @@ import 'app.dart';
 import 'data/app_store.dart';
 import 'data/vehicle_catalog.dart';
 import 'services/ad_service.dart';
+import 'services/cloud_service.dart';
 import 'services/notification_service.dart';
 
 Future<void> main() async {
@@ -24,6 +25,9 @@ Future<void> main() async {
   NotificationService.instance.scheduleSoon(store);
 
   runApp(AracTakipApp(store: store));
+
+  // Bulut: Firebase, isimsiz hesap ve senkron arka planda başlar; uygulamayı bekletmez.
+  CloudService.instance.start(store);
 
   // Marka/model listesini arka planda hazırla.
   VehicleCatalog.instance.load();

@@ -1,6 +1,7 @@
 // Özellik anahtarları.
 //
-// kCloudEnabled: Firebase (hesap bağlama, bulut yedekleme, rapor bağlantısı) hazır olunca true yapılacak.
-// false iken bu özelliklere giden kartlar ve butonlar gizlenir; Google Play incelemesinde
-// "çalışmayan özellik" görünmesin diye ilk test sürümü böyle çıkıyor.
-const bool kCloudEnabled = false;
+// kCloudEnabled: Firebase bulut yedekleme ve Google ile hesap bağlama açık.
+// kShareEnabled: Rapor bağlantısı paylaşma (shares + Hosting + app links) hazır olunca true yapılacak;
+// false iken servis geçmişindeki "Raporu paylaş" kartı gizli kalır.
+const bool kCloudEnabled = true;
+const bool kShareEnabled = false;

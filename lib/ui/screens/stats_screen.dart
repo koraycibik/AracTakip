@@ -1,4 +1,4 @@
-// 9 · İstatistikler: Hafta / Ay / 6 Ay / Yıl / Özel, araç filtresi,
+// 9 · Harcamalar (eski adıyla İstatistik): Hafta / Ay / 6 Ay / Yıl / Özel, araç filtresi,
 // çubuk grafik, kategori dağılımı. Kaza tutarları dahil edilmez.
 
 import 'package:flutter/material.dart';
@@ -71,7 +71,7 @@ class _StatsScreenState extends State<StatsScreen> {
             children: [
               Row(
                 children: [
-                  Expanded(child: Text('İstatistik', style: display(28, weight: FontWeight.w800))),
+                  Expanded(child: Text('Harcamalar', style: display(28, weight: FontWeight.w800))),
                   if (allVehicles.length > 1)
                     PopupMenuButton<String>(
                       tooltip: 'Araç seç',

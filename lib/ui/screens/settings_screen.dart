@@ -6,6 +6,7 @@ import '../../core/features.dart';
 import '../../core/layout.dart';
 import '../../core/theme.dart';
 import '../../data/app_store.dart';
+import '../../services/cloud_service.dart';
 import '../../services/notification_service.dart';
 import '../widgets/common.dart';
 import '../widgets/dialogs.dart';
@@ -31,44 +32,7 @@ class SettingsScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    AppCard(
-                      color: AppColors.navy,
-                      radius: 22,
-                      padding: const EdgeInsets.all(16),
-                      onTap: kCloudEnabled ? () => showLinkAccountSheet(context) : null,
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                                color: AppColors.accent, borderRadius: BorderRadius.circular(16)),
-                            child: const Icon(Icons.person_outline, color: AppColors.ink),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Misafir kullanıcı',
-                                    style: body(15, weight: FontWeight.w700, color: Colors.white)),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.cloud_off_outlined, size: 14, color: AppColors.navySoft),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(kCloudEnabled ? 'Veriler bu telefonda · hesabını bağla' : 'Veriler bu telefonda · yedekleme yakında',
-                                          style: body(12, color: AppColors.navySoft)),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (kCloudEnabled) const Icon(Icons.chevron_right, color: Colors.white),
-                        ],
-                      ),
-                    ),
+                    const _AccountCard(),
                     const SizedBox(height: 18),
                     _GroupTitle('BİLDİRİMLER'),
                     _Group(children: [
@@ -130,6 +94,26 @@ class SettingsScreen extends StatelessWidget {
                       ),
                     ]),
                     const SizedBox(height: 18),
+                    ListenableBuilder(
+                      listenable: CloudService.instance.user,
+                      builder: (context, _) => !CloudService.instance.isLinked
+                          ? const SizedBox.shrink()
+                          : Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: OutlinedButton.icon(
+                                onPressed: () => _signOut(context),
+                                icon: const Icon(Icons.logout),
+                                label: const Text('Çıkış yap'),
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(52),
+                                  foregroundColor: AppColors.ink,
+                                  side: const BorderSide(color: AppColors.border, width: 2),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  textStyle: body(14, weight: FontWeight.w700),
+                                ),
+                              ),
+                            ),
+                    ),
                     OutlinedButton.icon(
                       onPressed: () => _deleteAll(context),
                       icon: const Icon(Icons.delete_outline),
@@ -290,9 +274,42 @@ class SettingsScreen extends StatelessWidget {
       ),
     );
     ctrl.dispose();
-    if (ok != true) return;
+    if (ok != true || !context.mounted) return;
     await NotificationService.instance.cancelAll();
-    await store.deleteAllData();
+    if (!context.mounted) return;
+    try {
+      if (kCloudEnabled) {
+        await runWithProgress(context, 'Hesabın ve verilerin siliniyor…', CloudService.instance.deleteAccount);
+      } else {
+        await store.deleteAllData();
+      }
+    } catch (e) {
+      debugPrint('Hesap silinemedi: $e');
+      if (context.mounted) {
+        toast(context, 'Silme tamamlanamadı (${cloudErrorCode(e)}). İnternet bağlantını kontrol edip tekrar dene.');
+      }
+      return;
+    }
+    if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+  }
+
+  Future<void> _signOut(BuildContext context) async {
+    final ok = await confirm(
+      context,
+      title: 'Çıkış yapılsın mı?',
+      message: 'Verilerin hesabında kalır; aynı Google hesabıyla tekrar giriş yaptığında geri gelir. Bu telefondaki kopya silinir.',
+      ok: 'Çıkış yap',
+      danger: false,
+    );
+    if (!ok || !context.mounted) return;
+    await NotificationService.instance.cancelAll();
+    if (!context.mounted) return;
+    try {
+      await runWithProgress(context, 'Çıkış yapılıyor…', CloudService.instance.signOut);
+    } catch (e) {
+      debugPrint('Çıkış yapılamadı: $e');
+      if (context.mounted) toast(context, 'Çıkış yapılamadı (${cloudErrorCode(e)}).');
+    }
     if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
@@ -367,7 +384,7 @@ const _kvkkSummary = '''Tekerim, sana hizmet verebilmek için yalnızca senin gi
 
 Fotoğraf, belge, konum veya rehber gibi bilgiler istenmez ve toplanmaz.
 
-Şu an verilerin yalnızca bu telefonda tutulur. Hesabını bağladığında aynı veriler bulut veritabanında (Google Firebase) senin hesabına bağlı olarak saklanır ve başka kullanıcılarla paylaşılmaz. Sadece "Raporu paylaş" dediğinde, seçtiğin aracın bakım ve kaza geçmişinin bir kopyası, bağlantıyı bilen kişilerin 30 gün boyunca görebileceği şekilde paylaşılır.
+Verilerin bu telefonda ve yedek olarak bulut veritabanında (Google Firebase, Avrupa sunucuları) senin hesabına bağlı şekilde saklanır; başka kullanıcılarla paylaşılmaz. Giriş yapmadan da kullanabilmen için arka planda isimsiz bir hesap açılır. Google hesabını bağlarsan yalnızca e-posta adresin ve hesap kimliğin bu hesaba eklenir; şifre tutulmaz.
 
 Reklamlar Google AdMob tarafından gösterilir; reklam tercihlerini ilk açılışta çıkan onay ekranından yönetebilirsin.
 
@@ -377,10 +394,69 @@ Verilerini istediğin an Ayarlar > "Hesabımı ve verilerimi sil" ile kalıcı o
 
 const _privacySummary = '''Gizlilik politikası özeti
 
-• Toplanan veriler: araç bilgileri, gider kayıtları, bakım planı, kaza açıklamaları, bildirim ayarları.
+• Toplanan veriler: araç bilgileri, gider kayıtları, bakım planı, kaza açıklamaları, bildirim ayarları; hesap bağlarsan Google e-posta adresin.
+• Saklama: telefonda ve Google Firebase'de (Avrupa), yalnızca sana ait hesapta.
 • Toplanmayan veriler: fotoğraf, belge, konum, rehber, şifre.
 • Reklam: Google AdMob, reklam kimliği ve onay tercihleri.
-• Paylaşım: yalnızca senin oluşturduğun rapor bağlantıları, 30 gün geçerli.
 • Silme: Ayarlar ekranından tüm veriler kalıcı olarak silinebilir.
 
 [Tam gizlilik politikası yayından önce web sitesinde yayımlanacak ve buraya bağlantısı eklenecek.]''';
+
+/// Ayarların en üstündeki hesap kartı: misafir mi, Google ile bağlı mı.
+class _AccountCard extends StatelessWidget {
+  const _AccountCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final cloud = CloudService.instance;
+    return ListenableBuilder(
+      listenable: cloud.user,
+      builder: (context, _) {
+        final linked = kCloudEnabled && cloud.isLinked;
+        final title = linked ? (cloud.email ?? 'Google hesabı') : 'Misafir kullanıcı';
+        final sub = !kCloudEnabled
+            ? 'Veriler bu telefonda · yedekleme yakında'
+            : linked
+                ? 'Google ile bağlı · verilerin yedekleniyor'
+                : 'Telefon değişince veriler gelsin · hesabını bağla';
+        return AppCard(
+          color: AppColors.navy,
+          radius: 22,
+          padding: const EdgeInsets.all(16),
+          onTap: kCloudEnabled && !linked ? () => showLinkAccountSheet(context) : null,
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(16)),
+                child: Icon(linked ? Icons.verified_user_outlined : Icons.person_outline, color: AppColors.ink),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: body(15, weight: FontWeight.w700, color: Colors.white)),
+                    Row(
+                      children: [
+                        Icon(linked ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
+                            size: 14, color: AppColors.navySoft),
+                        const SizedBox(width: 6),
+                        Expanded(child: Text(sub, style: body(12, color: AppColors.navySoft))),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              if (kCloudEnabled && !linked) const Icon(Icons.chevron_right, color: Colors.white),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}

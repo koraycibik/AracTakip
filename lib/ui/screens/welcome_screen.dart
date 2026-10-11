@@ -57,7 +57,7 @@ class WelcomeScreen extends StatelessWidget {
                     const SizedBox(height: 6),
                     if (kCloudEnabled)
                       TextButton(
-                        onPressed: () => showLinkAccountSheet(context),
+                        onPressed: () => showLinkAccountSheet(context, signIn: true),
                         child: Text('Hesabım var, giriş yap',
                             style: body(15, weight: FontWeight.w700, color: AppColors.link)),
                       )

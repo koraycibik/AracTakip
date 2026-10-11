@@ -1,0 +1,62 @@
+{
+  "project_info": {
+    "project_number": "314033479705",
+    "project_id": "tekerim-c7442",
+    "storage_bucket": "tekerim-c7442.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:314033479705:android:9b1e96e80c3f1c729e8a88",
+        "android_client_info": {
+          "package_name": "com.koraycibik.arac_takip"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "314033479705-a8j7klm5glrqi8gd95r3rp2prhii9ar0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.koraycibik.arac_takip",
+            "certificate_hash": "9b42a105543f21bb94375cd420c291eae3939f20"
+          }
+        },
+        {
+          "client_id": "314033479705-k0mlgj34pavpigsfbr2mvu4q6jv30r51.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.koraycibik.arac_takip",
+            "certificate_hash": "0a7ccf81e44b64c8aabfb2a846f1e37c5fc0738d"
+          }
+        },
+        {
+          "client_id": "314033479705-bld598hfnr9er2ccnb2oc85lro1bthc4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyADW7VpnBvXOeK7rivcZjIt2k9VnLzGfIA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "314033479705-bld598hfnr9er2ccnb2oc85lro1bthc4.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "314033479705-dl4bsr5nddlrq75rdulmoo3rc505md1n.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.koraycibik.aracTakip"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

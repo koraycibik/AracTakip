@@ -26,10 +26,31 @@ Kişinin araç(lar)ını takip ettiği mobil uygulama: muayene, trafik sigortas�
 
 - Flutter (Dart), Firebase: Authentication, Cloud Firestore, Hosting. Ayrı backend sunucusu yok.
 - Cloud Functions kullanılmıyor (ücretli plan gerektirir). Her şey istemci + Firestore güvenlik kuralları.
-- Şu an kullanılan paketler: `shared_preferences`, `flutter_local_notifications` (v22: tüm metotlar named parametreli), `timezone`, `google_mobile_ads` (v9), `flutter_localizations` (SDK). Fontlar `assets/fonts` içinde gömülü (statik ağırlıklar), google_fonts paketi yok.
+- Şu an kullanılan paketler: `shared_preferences`, `flutter_local_notifications` (v22: tüm metotlar named parametreli), `timezone`, `google_mobile_ads` (v9), `flutter_localizations` (SDK), `firebase_core` 4.15, `firebase_auth` 6.7, `cloud_firestore` 6.10, `google_sign_in` 7.2 (yeni API: `GoogleSignIn.instance.initialize()` + `authenticate()`; Android'de sunucu kimliği google-services.json'daki default_web_client_id'den okunur). Fontlar `assets/fonts` içinde gömülü (statik ağırlıklar), google_fonts paketi yok.
 - Durum yönetimi: paket yok. Tek `AppStore` (ChangeNotifier) + `StoreScope` (InheritedNotifier). Ekranlar `StoreScope.of(context)` ile dinler, butonlarda `StoreScope.read(context)`.
 - Grafikler ve halkalar elle çizildi (fl_chart yok). Gezinme `Navigator.push` ile (go_router yok).
-- Firebase aşamasında eklenecek: `firebase_core`, `firebase_auth`, `cloud_firestore`, `google_sign_in`, `sign_in_with_apple`, `app_links`, `share_plus`. Sürümleri eklerken güncelini kontrol et.
+- Henüz eklenmeyenler: `sign_in_with_apple` (iOS aşaması), `app_links` + `share_plus` (rapor paylaşma). Paketleri kullanıcının bilgisayarında `flutter pub add` ile ekle (ortamdan pub.dev'e erişim yok), API'leri GitHub kaynağından doğrula.
+
+## Firebase kurulumu (12 Ekim 2026, yapıldı)
+
+- Proje: **tekerim-c7442** (Spark, ücretsiz). Firestore Standard, konum **eur3**. Analytics kapalı.
+- Auth sağlayıcıları açık: Anonymous, Google, Email/Password + Email link (şifresiz).
+- Uygulamalar: Android `com.koraycibik.arac_takip`, iOS `com.koraycibik.aracTakip` (+ yanlışlıkla eklenen web/windows kayıtları, zararsız).
+- `lib/firebase_options.dart`, `android/app/google-services.json` (SHA'lar eklendikten sonra konsoldan indirildi), Gradle'da `com.google.gms.google-services` 4.5.0.
+- Android SHA parmak izleri Firebase'e eklendi: deneme anahtarı SHA1 `0A:7C:CF:81:…:73:8D`, mağaza (upload) anahtarı SHA1 `9B:42:A1:05:…:9F:20` (+ SHA-256'ları). **Play hesabı açılınca Play App Signing anahtarının SHA1/SHA-256'sı da eklenmeli** (Play Console > Uygulama bütünlüğü), yoksa Play'den kurulan sürümde Google girişi çalışmaz; sonra google-services.json yeniden indirilmeli.
+- Güvenlik kuralları yüklendi (`firebase deploy --only firestore --project tekerim-c7442`); kural değişince aynı komut tekrar çalıştırılmalı. Senkron telefonda denendi: `users/{uid}` ve alt koleksiyonlar oluşuyor (12 Ekim 2026).
+
+## Bulut senkronu (`lib/services/cloud_service.dart`)
+
+- Uygulama önce telefondaki veriyle açılır; Firebase arka planda başlar, kullanıcı yoksa isimsiz hesap açılır.
+- Fark tabanlı senkron: `AppStore.exportData()` → Firestore yol/belge haritası (`users/{uid}`, `vehicles/{id}`, alt koleksiyonlar `records`, `maintenanceItems`, `accidents`, `reminders/{r+hash(key)}`); son gönderilen hâlin özeti (FNV-1a) shared_preferences'ta `cloud_baseline_v1`. Değişen belgeler yazılır, kaybolanlar silinir (araç silinince alt belgeler de). 400'lük batch. `ownerUid` araç ve kayıtlara eklenir. Tarihler bulutta Timestamp, telefonda ISO metin.
+- `AppStore.onPersisted` → 1,5 sn debounce → push. İnternet yokken Firestore kendi kuyruğunda tutar.
+- `cloud_synced_uid`: bu telefon bu hesapla ilk kez eşleşiyorsa (güncelleme sonrası ilk açılış, yeni telefonda giriş) telefon + bulut kimliğe göre birleştirilir; sonra normal açılışta önce push, sonra sunucudan çekilir ve farklıysa (başka cihaz) telefon buluttakiyle güncellenir. Okumalar `Source.server` (önbellekteki eksik kopya telefondakini ezmesin).
+- Google ile bağlama: `linkWithCredential`; Google hesabının zaten Tekerim hesabı varsa (`credential-already-in-use`) onay → eski isimsiz hesabın bulut kopyası ve Auth kaydı silinir → `signInWithCredential` → birleştirme.
+- Çıkış (sadece bağlı hesapta): bekleyenler gönderilir, telefondaki veri silinir, yeni isimsiz oturum.
+- Hesap silme: buluttaki her şey (alt koleksiyonlar → araçlar → reminders → users doc) → Auth hesabı (gerekirse Google ile yeniden doğrulama) → telefondaki veri → yeni isimsiz oturum.
+- Bulut işlemleri `_serial` kilidiyle sırayla yürür (çıkıştan hemen sonra girişte çakışma yaşandığı için eklendi). Hata mesajlarında kısa kod gösterilir (`cloudErrorCode`), kullanıcı iletebilsin diye.
+- iPhone'da şimdilik Google/Apple bağlama yok ("yakında" notu); e-posta bağlantısıyla giriş ve rapor paylaşma sonraki turda.
 
 ## Giriş ve hesap
 
@@ -55,7 +76,7 @@ Kişinin araç(lar)ını takip ettiği mobil uygulama: muayene, trafik sigortas�
 ## Ekranlar
 
 0. **Karşılama:** tanıtım, "Hemen başla", "Hesabım var, giriş yap", KVKK/gizlilik bağlantıları.
-1. **Garajım:** "Verilerini güvenceye al" kartı (hesap bağlı değilse), öne çıkan araç kartı (lacivert, Türk plakası, kalan süre halkaları: kasko/muayene/lastik), diğer araçlar listesi, "Yeni araç ekle". Sağ üstte ayarlar ve bildirim (rozetli) butonları.
+1. **Garajım:** "Verilerini güvenceye al" kartı (hesap bağlı değilse), her araç büyük kart (lacivert, Türk plakası, 3 halka: Bakım / Trafik sigortası / Muayene; halkada sayı + altında birim "gün / ay / yıl", kısaltma yok; kartın altında "Ekim ayı gideri ₺…" satırı), "Yeni araç ekle", altında "Önümüzdeki 90 gün beklenen gider" şeridi, sonra Yaklaşanlar. Sağ üstte ayarlar ve bildirim (rozetli) butonları.
 2a. **Araç ekle, adım 1:** plaka (TR plakası görünümlü giriş), araç türü (7 seçenek), marka ve model (araç tipine göre listeden aranarak seçilir, listede yoksa "… olarak kullan" ile serbest yazılır; kasa tipi/SUV yok), yıl, güncel km, yakıt tipi (Benzin, Dizel, LPG, Benzin+LPG, Hibrit, Elektrik; şarj edilebilir hibrit eklenmesi tartışmada).
 2b. **Araç ekle, adım 2:** sonraki muayene, trafik sigortası bitişi, kasko bitişi (isteğe bağlı), son bakım km'si, mevsimlik lastik hatırlatması (Kasım/Nisan). MTV (Ocak/Temmuz) otomatik. Kaydedince garaja döner, reklam yok.
 3. **Araç detayı:** km (güncelle butonu), bu ay harcama, yakıt/şarj ₺/100 km, durum kutuları (kasko, trafik sig., muayene, kış lastiği, MTV, yaklaşan bakım kalemi), altta 3 kart: Bakım planı, Servis geçmişi, Kaza/hasar.
@@ -70,7 +91,7 @@ Kişinin araç(lar)ını takip ettiği mobil uygulama: muayene, trafik sigortas�
 6. **Servis geçmişi:** kategori filtreleri, renkli ikonlu liste, üstte "Raporu paylaş".
 7. **Paylaşılan rapor (alıcı):** salt okunur; araç özeti, bakım kaydı sayısı, son bakım, muayene durumu, bakım geçmişi, **kaza ve hasar kayıtları**. Bakım tutarları raporda yok. Alt not: "Bilgiler araç sahibi tarafından girilmiştir · Rapor kodu · 30 gün geçerli".
 8. **Kaza ve hasar geçmişi:** tarih, hasar tutarı (0 olabilir), açıklama ("SMS sonucunu yapıştır" butonu: hasar sorgusu SMS'i panodan yapıştırılır). Bu tutarlar **giderlere/istatistiğe dahil edilmez**, ama paylaşılan rapora girer.
-9. **İstatistik:** dönem filtresi Hafta / Ay / 6 Ay / Yıl / Özel (başlangıç-bitiş tarihi), araç filtresi (Tüm araçlar veya tek araç), çubuk grafik, toplam, yapılan km, ₺/100 km, kategori dağılımı.
+9. **Harcamalar** (eski adı İstatistik; alt menüde de "Harcamalar"): dönem filtresi Hafta / Ay / 6 Ay / Yıl / Özel (başlangıç-bitiş tarihi), araç filtresi (Tüm araçlar veya tek araç), çubuk grafik, toplam, yapılan km, ₺/100 km, kategori dağılımı.
 10. **Hatırlatmalar:** en yakın hatırlatma kartı, sekmeler: Yaklaşan / Geciken / Tamamlanan.
 11. **Ayarlar:** hesap bilgisi, bildirimler (açık/kapalı, saat 09:00, kaç gün önce 30·7·1), KVKK, gizlilik, bize ulaş, çıkış, hesap silme.
 12. **Hesabını bağla:** alttan açılan tek dokunuşluk pencere (platforma göre Google veya Apple), e-posta bağlantısı, "Şimdi değil".
@@ -161,9 +182,9 @@ Uygulama **yerel (cihazda saklanan) modda tamamlandı**: tüm ekranlar, bakım p
 - Veri: `lib/data/app_store.dart` tüm veriyi shared_preferences'ta tek JSON olarak tutar. Firebase'e geçişte sadece bu sınıfın load/_save kısmı Firestore'a bağlanacak; modeller (`lib/data/models.dart`) Firestore şemasıyla birebir aynı.
 - Klasörler: `lib/core` (tema, biçimler, düzen), `lib/data` (modeller, hazır bakım kalemleri, marka/model kataloğu, depo), `lib/logic` (km, bakım durumu, hatırlatmalar, istatistik, gider tahmini `forecast.dart`, gerçek maliyet `true_cost.dart`, usta defteri `workshops.dart`, ay özeti `month_summary.dart`), `lib/services` (bildirim, reklam), `lib/ui` (shell, screens, widgets).
 - Testler: `test/widget_test.dart`, `test/features_test.dart` (`flutter test`).
-- Henüz yapılmayanlar (Firebase aşaması): isimsiz giriş + Google/Apple/e-posta bağlantısıyla hesap bağlama, Firestore senkronu, rapor bağlantısı paylaşma (shares + app links + hosting/rapor.html), hesap silmede bulut verisinin silinmesi. Arayüzde bu yerler "bulut kurulumu tamamlanınca açılacak" notu gösteriyor (`showLinkAccountSheet`, `ReportScreen`).
+- Firebase aşamasında yapılanlar: isimsiz giriş, Firestore senkronu, Google ile bağlama/giriş, çıkış, bulut verisini de silen hesap silme. Kalanlar: e-posta bağlantısıyla giriş, Apple ile giriş (iOS), rapor bağlantısı paylaşma (shares + app links + hosting/rapor.html), Play App Signing SHA'ları, gizlilik politikasının bulut bilgisiyle güncellenmesi.
 - **Google Play hazırlığı (yapıldı):** `targetSdk` en az 36; mağaza imzası `android/key.properties`'ten okunur (yoksa deneme anahtarı; örnek `android/key.properties.example`, anahtar dosyası proje dışında `C:/Users/koray.cibik/tekerim-upload.jks`, git'e girmez).
-- **`lib/core/features.dart` → `kCloudEnabled = false`:** Firebase gelene kadar "Verilerini güvenceye al" kartı, karşılamadaki "Hesabım var, giriş yap", servis geçmişindeki "Raporu paylaş" kartı gizli; ayarlarda "Veriler bu telefonda · yedekleme yakında". Firebase hazır olunca true yapılacak.
+- **`lib/core/features.dart`:** `kCloudEnabled = true` (bulut + Google ile bağlama açık), `kShareEnabled = false` (servis geçmişindeki "Raporu paylaş" kartı gizli; rapor bağlantısı hazır olunca true).
 - **AdMob:** uygulama kimliği `android/app/build.gradle.kts` içindeki `admobAppId` (manifest `${admobAppId}` ile okur), reklam birimleri `ad_service.dart` içindeki `_realAndroidUnit` / `_realIosUnit`. Boşken ve hata ayıklamada test reklamı. Kapalı test boyunca test reklamı kalır; gerçek kimlikler üretim yayınından önce yazılır. iOS kimliği Info.plist'te (iOS aşamasında).
 - Yayın öncesi kalan: KVKK/gizlilik metinleri ve destek e-postası (`settings_screen.dart`), gizlilik politikası sayfası (Firebase Hosting), Play Console formları.
 - Takvim: kod işleri → ilk .aab → kapalı test (12 kişi/14 gün) başlar; test sürerken Firebase + hesap bağlama yapılır; üretim yayını bulut yedeklemesiyle çıkar. Ayrıntı: "Araç Takip · Google Play Yayın Planı" belgesi.

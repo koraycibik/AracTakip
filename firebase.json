@@ -1,18 +1,1 @@
-{
-  "firestore": {
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
-  },
-  "hosting": {
-    "public": "hosting",
-    "ignore": ["firebase.json", "**/.*"],
-    "rewrites": [
-      { "source": "/r/**", "destination": "/rapor.html" }
-    ]
-  },
-  "emulators": {
-    "firestore": { "port": 8080 },
-    "auth": { "port": 9099 },
-    "ui": { "enabled": true }
-  }
-}
+{"firestore":{"rules":"firestore.rules","indexes":"firestore.indexes.json"},"hosting":{"public":"hosting","ignore":["firebase.json","**/.*"],"rewrites":[{"source":"/r/**","destination":"/rapor.html"}]},"emulators":{"firestore":{"port":8080},"auth":{"port":9099},"ui":{"enabled":true}},"flutter":{"platforms":{"android":{"default":{"projectId":"tekerim-c7442","appId":"1:314033479705:android:9b1e96e80c3f1c729e8a88","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"tekerim-c7442","configurations":{"android":"1:314033479705:android:9b1e96e80c3f1c729e8a88","ios":"1:314033479705:ios:dcee305da51392769e8a88"}}}}}}
