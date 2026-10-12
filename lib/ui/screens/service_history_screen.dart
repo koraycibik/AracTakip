@@ -2,12 +2,12 @@
 
 import 'package:flutter/material.dart';
 
-import '../../core/features.dart';
 import '../../core/format.dart';
 import '../../core/layout.dart';
 import '../../core/theme.dart';
 import '../../data/app_store.dart';
 import '../../data/models.dart';
+import '../widgets/coach.dart';
 import '../widgets/common.dart';
 import 'report_screen.dart';
 import 'vehicle_detail_screen.dart';
@@ -82,15 +82,19 @@ class _ServiceHistoryBodyState extends State<ServiceHistoryBody> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (widget.header != null) ...[widget.header!, const SizedBox(height: 12)],
-                if (kShareEnabled) ...[
-                  _ReportCard(
+                TipAnchor(
+                  tipKey: 'tip_share_report',
+                  title: 'Araç geçmişi raporun',
+                  text: 'Alıcının göreceği raporu önce sen gör. Bakım ve kaza geçmişi yer alır, tutarlar görünmez. '
+                      'Aracını satarken bağlantıyla paylaşabilirsin.',
+                  child: _ReportCard(
                     serviceCount: serviceCount,
                     accidentCount: store.accidentsFor(v.id).length,
                     onShare: () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => ReportScreen(vehicleId: v.id))),
+                        builder: (_) => ReportScreen(vehicleId: v.id, preview: true))),
                   ),
-                  const SizedBox(height: 10),
-                ],
+                ),
+                const SizedBox(height: 10),
                 const WorkshopsLinkCard(),
                 const SizedBox(height: 14),
                 SizedBox(
@@ -182,7 +186,7 @@ class _ReportCard extends StatelessWidget {
                         Text('Araç geçmişi raporu',
                             style: display(17, weight: FontWeight.w700, color: Colors.white)),
                         Text(
-                          '$serviceCount servis ve $accidentCount kaza kaydı. Bağlantıyla paylaş, alıcı uygulamada açsın.',
+                          '$serviceCount servis ve $accidentCount kaza kaydı. Önce sen gör, istersen paylaş.',
                           style: body(13, color: AppColors.navySoft),
                         ),
                       ],
@@ -195,8 +199,8 @@ class _ReportCard extends StatelessWidget {
                 height: 50,
                 child: FilledButton.icon(
                   onPressed: onShare,
-                  icon: const Icon(Icons.ios_share, size: 20),
-                  label: const Text('Raporu paylaş'),
+                  icon: const Icon(Icons.visibility_outlined, size: 20),
+                  label: const Text('Raporu gör'),
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.accent,
                     foregroundColor: AppColors.ink,

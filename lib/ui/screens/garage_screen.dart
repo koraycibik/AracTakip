@@ -11,8 +11,10 @@ import '../../data/app_store.dart';
 import '../../data/models.dart';
 import '../../logic/maintenance.dart';
 import '../../services/cloud_service.dart';
+import '../widgets/coach.dart';
 import '../widgets/common.dart';
 import '../widgets/dialogs.dart';
+import '../widgets/start_checklist.dart';
 import 'forecast_screen.dart';
 import 'reminders_screen.dart';
 import 'settings_screen.dart';
@@ -149,11 +151,13 @@ class _GarageList extends StatelessWidget {
               vehicle: vehicles[i],
               selected: selectedId == vehicles[i].id,
               onTap: () => onOpen(vehicles[i]),
+              ringsKey: i == 0 ? TourKeys.garageRings : null,
             ),
           ],
           const SizedBox(height: 12),
           _AddVehicleButton(onTap: onAdd),
           const SizedBox(height: 12),
+          StartChecklist(onAddVehicle: onAdd),
           const ForecastStrip(),
           if (reminders.isNotEmpty) ...[
             const SizedBox(height: 16),
@@ -217,10 +221,13 @@ class _LinkCard extends StatelessWidget {
 /// Araç kartı (lacivert, plaka, 3 halka: bakım, trafik sigortası, muayene).
 /// Garajdaki her araç bu kartla gösterilir.
 class _VehicleCard extends StatelessWidget {
-  const _VehicleCard({required this.vehicle, required this.onTap, this.selected = false});
+  const _VehicleCard({required this.vehicle, required this.onTap, this.selected = false, this.ringsKey});
   final Vehicle vehicle;
   final VoidCallback onTap;
   final bool selected;
+
+  /// Tanıtım turunda halkaları göstermek için (sadece ilk kartta).
+  final Key? ringsKey;
 
   @override
   Widget build(BuildContext context) {
@@ -296,6 +303,7 @@ class _VehicleCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     Container(
+                      key: ringsKey,
                       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
                       decoration: BoxDecoration(
                         color: const Color(0x14FFFFFF),

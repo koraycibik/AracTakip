@@ -171,6 +171,34 @@ Set<String> effectiveSelection(Set<String>? sel, List<Vehicle> vehicles) {
 }
 
 // ---------------------------------------------------------------------------
+// Form alanı altındaki kısa açıklama ("neden önemli?")
+// ---------------------------------------------------------------------------
+
+class FieldNote extends StatelessWidget {
+  const FieldNote(this.text, {super.key, this.icon = Icons.info_outline});
+  final String text;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, left: 2, right: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(icon, size: 15, color: AppColors.link),
+          ),
+          const SizedBox(width: 6),
+          Expanded(child: Text(text, style: body(12, color: AppColors.inkSoft, height: 1.35))),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Kalan süre halkası
 // ---------------------------------------------------------------------------
 
@@ -768,7 +796,10 @@ class ScreenHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canPop = Navigator.of(context).canPop();
+    // Bu ekran kendi sayfasında mı açıldı? (Alt menü sekmeleri ilk sayfadadır,
+    // onlarda geri butonu çıkmaz. Navigator.canPop üstte başka sayfa açıkken de
+    // true döndüğü için sekmelerde çalışmayan bir geri butonu görünüyordu.)
+    final canPop = ModalRoute.of(context)?.canPop ?? false;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
       child: Row(

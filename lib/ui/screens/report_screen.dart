@@ -6,16 +6,30 @@
 
 import 'package:flutter/material.dart';
 
+import '../../core/features.dart';
 import '../../core/format.dart';
 import '../../core/layout.dart';
 import '../../core/theme.dart';
 import '../../data/app_store.dart';
 import '../../data/models.dart';
+import '../../logic/maintenance.dart';
+import '../../logic/report.dart';
 import '../widgets/common.dart';
 
 class ReportScreen extends StatelessWidget {
-  const ReportScreen({super.key, required this.vehicleId});
+  const ReportScreen({super.key, required this.vehicleId, this.preview = false});
   final String vehicleId;
+
+  /// Araç sahibinin kendi önizlemesi: altta "Paylaş" butonu çıkar.
+  final bool preview;
+
+  void _share(BuildContext context) {
+    if (!kShareEnabled) {
+      toast(context, 'Bağlantıyla paylaşma çok yakında geliyor. Rapor şimdilik sadece sende görünüyor.');
+      return;
+    }
+    // Bağlantı oluşturma (shares/{id}) bu adımda eklenecek.
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,11 +40,44 @@ class ReportScreen extends StatelessWidget {
     final service = store.recordsFor(v.id).where((r) => r.category.isServiceHistory).toList();
     final maint = service.where((r) => r.category == RecordCategory.maintenance).toList();
     final accidents = store.accidentsFor(v.id);
-    final inspectionOk =
-        v.inspectionDueDate != null && !v.inspectionDueDate!.isBefore(today());
+    final rep = computeReport(vehicle: v, records: store.allRecords, plan: store.maintenanceFor(v));
     final top = MediaQuery.paddingOf(context).top;
 
     return Scaffold(
+      bottomNavigationBar: !preview
+          ? null
+          : SafeArea(
+              top: false,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+                decoration: const BoxDecoration(
+                  color: AppColors.card,
+                  border: Border(top: BorderSide(color: AppColors.border)),
+                ),
+                child: MaxWidth(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        kShareEnabled
+                            ? 'Paylaşınca bu raporun o anki kopyası bir bağlantıyla gönderilir, 30 gün geçerlidir.'
+                            : 'Bağlantıyla paylaşma çok yakında. Rapor şimdilik sadece sende.',
+                        textAlign: TextAlign.center,
+                        style: body(12, color: AppColors.inkSoft),
+                      ),
+                      const SizedBox(height: 8),
+                      BigButton(
+                        label: kShareEnabled ? 'Raporu paylaş' : 'Paylaş · yakında',
+                        icon: Icons.ios_share,
+                        dark: !kShareEnabled,
+                        onPressed: () => _share(context),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
       body: ListView(
         padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom + 24),
         children: [
@@ -62,9 +109,10 @@ class ReportScreen extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.lock_outline, size: 14, color: Colors.white),
+                            Icon(preview ? Icons.visibility_outlined : Icons.lock_outline,
+                                size: 14, color: Colors.white),
                             const SizedBox(width: 6),
-                            Text('Sadece görüntüleme',
+                            Text(preview ? 'Önizleme · alıcı böyle görür' : 'Sadece görüntüleme',
                                 style: body(12, weight: FontWeight.w700, color: Colors.white)),
                           ],
                         ),
@@ -83,6 +131,9 @@ class ReportScreen extends StatelessWidget {
                   ),
                   Text('${v.type.label} · ${v.fuelType.label} · son kayıtlı km ${thousands(v.currentKm)}',
                       style: body(13, color: AppColors.navySoft)),
+                  const SizedBox(height: 4),
+                  Text('Tekerim\'de takip: ${monthYear(rep.trackingSince)} itibarıyla',
+                      style: body(12, weight: FontWeight.w600, color: AppColors.accent)),
                 ],
               ),
             ),
@@ -103,11 +154,56 @@ class ReportScreen extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: _Stat('Muayene', inspectionOk ? 'Geçerli' : 'Bilinmiyor',
-                            good: inspectionOk),
+                        child: _Stat('Yıllık ort. km', rep.kmPerYear == null ? '—' : thousands(rep.kmPerYear!)),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  const SectionHeader('Belgeler ve süreler'),
+                  const SizedBox(height: 8),
+                  AppCard(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                    child: Column(
+                      children: [
+                        for (var i = 0; i < rep.docs.length; i++)
+                          _DocRow(doc: rep.docs[i], last: i == rep.docs.length - 1),
+                      ],
+                    ),
+                  ),
+                  if (rep.kmPoints.length >= 2) ...[
+                    const SizedBox(height: 16),
+                    const SectionHeader('Kilometre geçmişi'),
+                    const SizedBox(height: 8),
+                    _KmCard(report: rep),
+                  ],
+                  if (rep.keyJobs.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const SectionHeader('Son yapılan işlemler'),
+                    const SizedBox(height: 8),
+                    AppCard(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < rep.keyJobs.length; i++)
+                            _JobRow(job: rep.keyJobs[i], last: i == rep.keyJobs.length - 1),
+                        ],
+                      ),
+                    ),
+                  ],
+                  if (rep.plan.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const SectionHeader('Bakım planı durumu'),
+                    const SizedBox(height: 8),
+                    AppCard(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < rep.plan.length; i++)
+                            _PlanRow(status: rep.plan[i], last: i == rep.plan.length - 1),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   const SectionHeader('Bakım geçmişi'),
                   const SizedBox(height: 8),
@@ -149,27 +245,6 @@ class ReportScreen extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: body(11, color: AppColors.inkSoft),
                   ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: AppColors.catMaintTint,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.info_outline, color: AppColors.catMaint, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Bu, alıcının göreceği raporun ön izlemesi. Bağlantıyla paylaşma bulut kurulumu tamamlanınca açılacak; alıcı bağlantıyı Tekerim uygulamasında açacak.',
-                            style: body(13, weight: FontWeight.w600, color: const Color(0xFF1B3FA8)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -178,6 +253,208 @@ class ReportScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Satır kabı: alt çizgili, sabit iç boşluklu.
+class _Line extends StatelessWidget {
+  const _Line({required this.last, required this.child});
+  final bool last;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 48),
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        border: last ? null : const Border(bottom: BorderSide(color: AppColors.divider)),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _DocRow extends StatelessWidget {
+  const _DocRow({required this.doc, required this.last});
+  final DocStatus doc;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = doc;
+    final (text, state) = !d.known
+        ? ('Bilgi yok', DueState.soon)
+        : d.valid
+            ? ('Geçerli · ${monthYear(d.until!)}', DueState.ok)
+            : ('Süresi geçmiş', DueState.overdue);
+    return _Line(
+      last: last,
+      child: Row(
+        children: [
+          Expanded(child: Text(d.label, style: body(14, weight: FontWeight.w700))),
+          Flexible(child: StatusPill(text, state)),
+        ],
+      ),
+    );
+  }
+}
+
+class _JobRow extends StatelessWidget {
+  const _JobRow({required this.job, required this.last});
+  final KeyJob job;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Line(
+      last: last,
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle, size: 18, color: AppColors.okText),
+          const SizedBox(width: 10),
+          Expanded(child: Text(job.label, style: body(14, weight: FontWeight.w700))),
+          Text(
+            [monthYear(job.date), if (job.km != null) '${thousands(job.km!)} km'].join(' · '),
+            style: body(12, weight: FontWeight.w600, color: AppColors.inkSoft),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanRow extends StatelessWidget {
+  const _PlanRow({required this.status, required this.last});
+  final MaintenanceStatus status;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = status;
+    final text = switch (s.state) {
+      DueState.overdue => 'Gecikmiş',
+      DueState.soon => 'Yaklaşıyor',
+      DueState.ok => 'Zamanında',
+    };
+    return _Line(
+      last: last,
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(s.item.name, style: body(14, weight: FontWeight.w700)),
+                Text(s.leftText, style: body(12, color: AppColors.inkSoft)),
+              ],
+            ),
+          ),
+          StatusPill(text, s.state),
+        ],
+      ),
+    );
+  }
+}
+
+/// Km okumalarının küçük çizgi grafiği + tutarlılık durumu.
+class _KmCard extends StatelessWidget {
+  const _KmCard({required this.report});
+  final VehicleReport report;
+
+  @override
+  Widget build(BuildContext context) {
+    final r = report;
+    final first = r.kmPoints.first;
+    final lastP = r.kmPoints.last;
+    return AppCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text('${r.kmPoints.length} km kaydı',
+                    style: body(13, weight: FontWeight.w700, color: AppColors.inkSoft)),
+              ),
+              StatusPill(r.kmConsistent ? 'Km düzenli artıyor' : 'Km kayıtlarında düşüş var',
+                  r.kmConsistent ? DueState.ok : DueState.overdue),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 90,
+            child: CustomPaint(painter: _KmPainter(r.kmPoints)),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: Text('${thousands(first.km)} km\n${monthYear(first.date)}',
+                    style: body(12, weight: FontWeight.w600, color: AppColors.inkSoft)),
+              ),
+              Expanded(
+                child: Text('${thousands(lastP.km)} km\n${monthYear(lastP.date)}',
+                    textAlign: TextAlign.right,
+                    style: body(12, weight: FontWeight.w700, color: AppColors.ink)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _KmPainter extends CustomPainter {
+  _KmPainter(this.points);
+  final List<KmPoint> points;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t0 = points.first.date.millisecondsSinceEpoch.toDouble();
+    final t1 = points.last.date.millisecondsSinceEpoch.toDouble();
+    var minKm = points.first.km.toDouble();
+    var maxKm = minKm;
+    for (final p in points) {
+      if (p.km < minKm) minKm = p.km.toDouble();
+      if (p.km > maxKm) maxKm = p.km.toDouble();
+    }
+    final spanT = (t1 - t0) == 0 ? 1.0 : (t1 - t0);
+    final spanK = (maxKm - minKm) == 0 ? 1.0 : (maxKm - minKm);
+    Offset at(KmPoint p) => Offset(
+          4 + (p.date.millisecondsSinceEpoch - t0) / spanT * (size.width - 8),
+          size.height - 4 - (p.km - minKm) / spanK * (size.height - 8),
+        );
+
+    final grid = Paint()
+      ..color = AppColors.divider
+      ..strokeWidth = 1;
+    for (var i = 0; i <= 2; i++) {
+      final y = 4 + i * (size.height - 8) / 2;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
+    }
+    final path = Path()..moveTo(at(points.first).dx, at(points.first).dy);
+    for (final p in points.skip(1)) {
+      final o = at(p);
+      path.lineTo(o.dx, o.dy);
+    }
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = AppColors.navy
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..strokeJoin = StrokeJoin.round,
+    );
+    final dot = Paint()..color = AppColors.accent;
+    for (final p in points) {
+      canvas.drawCircle(at(p), 3.5, dot);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_KmPainter old) => old.points != points;
 }
 
 class _Stat extends StatelessWidget {

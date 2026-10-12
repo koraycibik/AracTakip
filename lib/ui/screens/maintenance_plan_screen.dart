@@ -21,6 +21,10 @@ class MaintenancePlanScreen extends StatelessWidget {
     final store = StoreScope.of(context);
     final v = store.vehicle(vehicleId);
     if (v == null) return const Scaffold(body: Center(child: Text('Araç bulunamadı')));
+    if (!store.seen('done_plan')) {
+      // "Tekerim'i tanı" maddesi: bakım planı açıldı.
+      WidgetsBinding.instance.addPostFrameCallback((_) => store.markSeen('done_plan'));
+    }
     final avg = store.avgKmPerDay(v);
     final statuses = store.maintenanceFor(v);
 

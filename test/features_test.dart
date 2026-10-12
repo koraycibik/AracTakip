@@ -9,6 +9,7 @@ import 'package:arac_takip/data/models.dart';
 import 'package:arac_takip/data/vehicle_catalog.dart';
 import 'package:arac_takip/data/app_store.dart';
 import 'package:arac_takip/logic/month_summary.dart';
+import 'package:arac_takip/logic/report.dart';
 import 'package:arac_takip/logic/stats.dart';
 import 'package:arac_takip/logic/true_cost.dart';
 import 'package:arac_takip/logic/workshops.dart';
@@ -140,5 +141,39 @@ void main() {
     expect(r.city, 'Bursa');
     store.saveReview(WorkshopReview(key: key, name: 'Özgür Oto', updatedAt: DateTime.now()));
     expect(store.reviewFor(key), null);
+  });
+
+  test('tanıtım: görülen ipuçları saklanır, tur sıfırlanınca tamamlananlar kalır', () {
+    final store = AppStore();
+    store.markSeen('tour_garage');
+    store.markSeen('done_km');
+    final copy = AppStore()..replaceAll(store.exportData());
+    expect(copy.seen('tour_garage'), true);
+    copy.resetTips();
+    expect(copy.seen('tour_garage'), false);
+    expect(copy.seen('done_km'), true);
+  });
+
+  test('rapor: km geçmişi, düşüş tespiti ve son yapılan işlemler', () {
+    final v = _car();
+    final d = DateTime.now();
+    final recs = [
+      _rec('v1', RecordCategory.fuel, d.subtract(const Duration(days: 200)), 50000, km: 50000),
+      _rec('v1', RecordCategory.maintenance, d.subtract(const Duration(days: 100)), 300000, km: 55000)
+        ..jobs = ['timing_belt', 'engine_oil'],
+    ];
+    final r = computeReport(vehicle: v, records: recs, plan: const []);
+    expect(r.kmConsistent, true);
+    expect(r.firstKm, 50000);
+    expect(r.lastKm, 60000);
+    expect(r.kmPerYear, isNotNull);
+    expect(r.keyJobs.any((j) => j.label == 'Triger seti' && j.km == 55000), true);
+
+    final bad = computeReport(
+      vehicle: v,
+      records: [_rec('v1', RecordCategory.fuel, d.subtract(const Duration(days: 10)), 1000, km: 90000)],
+      plan: const [],
+    );
+    expect(bad.kmConsistent, false);
   });
 }

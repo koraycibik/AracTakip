@@ -11,6 +11,7 @@ import '../../data/models.dart';
 import '../../logic/maintenance.dart';
 import '../../logic/reminders.dart';
 import '../../logic/true_cost.dart';
+import '../widgets/coach.dart';
 import '../widgets/common.dart';
 import '../widgets/dialogs.dart';
 import 'accident_screen.dart';
@@ -196,15 +197,21 @@ class _Header extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                FilledButton(
-                  onPressed: () => showKmDialog(context, v),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: AppColors.ink,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    textStyle: body(13, weight: FontWeight.w700),
+                TipAnchor(
+                  tipKey: 'tip_detail_km',
+                  title: 'Kilometreni güncel tut',
+                  text: 'Ara sıra km\'yi güncellersen bakım tahminleri düzelir. '
+                      'Biz de 2 haftada bir bildirimle soracağız; tek dokunuşla girersin.',
+                  child: FilledButton(
+                    onPressed: () => showKmDialog(context, v),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: AppColors.ink,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      textStyle: body(13, weight: FontWeight.w700),
+                    ),
+                    child: const Text('Km güncelle'),
                   ),
-                  child: const Text('Km güncelle'),
                 ),
               ],
             ),

@@ -598,7 +598,10 @@ class AppSettings {
     this.kmPromptDays = 14,
     this.linkCardDismissedAt,
     this.splitLpg = true,
-  }) : leadDays = leadDays ?? [30, 7, 1];
+    Set<String>? seenTips,
+    this.checklistDismissed = false,
+  })  : leadDays = leadDays ?? [30, 7, 1],
+        seenTips = seenTips ?? <String>{};
 
   bool onboarded;
   bool notificationsEnabled;
@@ -611,6 +614,14 @@ class AppSettings {
   /// Harcamalar ve Gerçek maliyet ekranlarında LPG ile benzini ayrı göster.
   bool splitLpg;
 
+  /// Görülen tanıtım adımları ve tamamlanan "Tekerim'i tanı" maddeleri
+  /// (ör. 'tour_garage', 'tip_record_km', 'done_km'). Buluta da yedeklenir,
+  /// yeni telefonda tur tekrar çıkmaz.
+  Set<String> seenTips;
+
+  /// Garajdaki "Tekerim'i tanı" kartı kapatıldı mı?
+  bool checklistDismissed;
+
   Map<String, dynamic> toJson() => {
         'onboarded': onboarded,
         'notificationsEnabled': notificationsEnabled,
@@ -620,6 +631,8 @@ class AppSettings {
         'kmPromptDays': kmPromptDays,
         'linkCardDismissedAt': _iso(linkCardDismissedAt),
         'splitLpg': splitLpg,
+        'seenTips': (seenTips.toList()..sort()),
+        'checklistDismissed': checklistDismissed,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> j) => AppSettings(
@@ -631,5 +644,7 @@ class AppSettings {
         kmPromptDays: j['kmPromptDays'] as int? ?? 14,
         linkCardDismissedAt: _date(j['linkCardDismissedAt']),
         splitLpg: j['splitLpg'] as bool? ?? true,
+        seenTips: {for (final x in (j['seenTips'] as List? ?? const [])) x.toString()},
+        checklistDismissed: j['checklistDismissed'] as bool? ?? false,
       );
 }

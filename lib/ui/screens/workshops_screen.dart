@@ -10,6 +10,7 @@ import '../../data/models.dart';
 import '../../data/provinces.dart';
 import '../../logic/workshops.dart';
 import '../widgets/catalog_picker.dart';
+import '../widgets/coach.dart';
 import '../widgets/common.dart';
 
 const _palette = [
@@ -385,13 +386,18 @@ class _ReviewBox extends StatelessWidget {
               Text(r == null || r.rating == 0 ? 'Puan ver' : 'Puanın',
                   style: body(13, weight: FontWeight.w700)),
               const Spacer(),
-              StarRating(
+              TipAnchor(
+                tipKey: 'tip_workshop_rate',
+                title: 'Ustana puan ver',
+                text: 'Yıldıza dokun, puanın hemen kaydedilir. "Not ve il ekle" ile kendine not düşebilirsin; notların sadece sende.',
+                child: StarRating(
                 value: r?.rating ?? 0,
                 onChanged: (v) {
                   final store = StoreScope.read(context);
                   final x = _copy(r, workshop)..rating = v;
                   store.saveReview(x);
                 },
+              ),
               ),
             ],
           ),

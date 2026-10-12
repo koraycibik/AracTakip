@@ -13,6 +13,7 @@ import 'screens/month_summary_screen.dart';
 import 'screens/record_add_screen.dart';
 import 'screens/reminders_screen.dart';
 import 'screens/stats_screen.dart';
+import 'widgets/coach.dart';
 import 'widgets/dialogs.dart';
 
 class Shell extends StatefulWidget {
@@ -24,6 +25,48 @@ class Shell extends StatefulWidget {
 
 class _ShellState extends State<Shell> {
   int _tab = 0; // 0 garaj, 1 hatırlatma, 2 istatistik, 3 geçmiş
+  bool _tourPending = false;
+
+  /// İlk araç eklendikten sonra garajda bir kez gösterilen 4 adımlık tur.
+  void _maybeStartGarageTour(AppStore store) {
+    if (_tourPending || _tab != 0 || store.vehicles.isEmpty || store.seen('tour_garage')) return;
+    _tourPending = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Araç formu kapanırken bekle; üstte başka sayfa varsa biraz sonra tekrar dene.
+      for (var tries = 0; tries < 30; tries++) {
+        await Future<void>.delayed(const Duration(milliseconds: 800));
+        if (!mounted) return;
+        if (_tab != 0 || store.seen('tour_garage')) break;
+        if (ModalRoute.of(context)?.isCurrent ?? true) {
+          store.markSeen('tour_garage');
+          await showCoachTour(context, [
+            CoachStep(
+              target: TourKeys.garageRings,
+              title: 'Kalan süreler',
+              text: 'Bakım, trafik sigortası ve muayeneye ne kadar kaldığını buradan görürsün. Renk sarıya dönerse yaklaşıyor, kırmızıysa gecikti.',
+            ),
+            CoachStep(
+              target: TourKeys.addButton,
+              title: 'Gider ekle',
+              text: 'Yakıt, bakım, lastik, sigorta, ceza… Her harcamayı buradan gir. Km\'yi de yazarsan 100 km\'nin sana kaça mal olduğunu hesaplarız.',
+            ),
+            CoachStep(
+              target: TourKeys.navReminders,
+              title: 'Hatırlatmalar',
+              text: 'Yaklaşan ve geciken her şey burada. Tarihi gelmeden bildirim de göndeririz.',
+            ),
+            CoachStep(
+              target: TourKeys.navStats,
+              title: 'Harcamalar',
+              text: 'Nereye ne kadar harcadığını grafikle gör; dönem ve araç seçebilirsin.',
+            ),
+          ]);
+          break;
+        }
+      }
+      _tourPending = false;
+    });
+  }
 
   @override
   void initState() {
@@ -63,6 +106,7 @@ class _ShellState extends State<Shell> {
 
   @override
   Widget build(BuildContext context) {
+    _maybeStartGarageTour(StoreScope.of(context));
     final size = layoutOf(context);
     final pages = [
       GarageScreen(twoPane: size == LayoutSize.expanded),
@@ -135,6 +179,7 @@ class _FloatingNav extends StatelessWidget {
       final selected = index == i;
       final color = selected ? AppColors.accent : AppColors.inkFaint;
       return Expanded(
+        key: i == 1 ? TourKeys.navReminders : (i == 2 ? TourKeys.navStats : null),
         child: Semantics(
           button: true,
           selected: selected,
@@ -183,6 +228,7 @@ class _FloatingNav extends StatelessWidget {
                 child: Tooltip(
                   message: 'Kayıt ekle',
                   child: Material(
+                    key: TourKeys.addButton,
                     color: AppColors.accent,
                     borderRadius: BorderRadius.circular(18),
                     child: InkWell(
@@ -224,6 +270,7 @@ class _SideRail extends StatelessWidget {
           Tooltip(
             message: 'Kayıt ekle',
             child: Material(
+              key: TourKeys.addButton,
               color: AppColors.accent,
               borderRadius: BorderRadius.circular(18),
               child: InkWell(
@@ -240,6 +287,7 @@ class _SideRail extends StatelessWidget {
           const SizedBox(height: 20),
           for (var i = 0; i < _navItems.length; i++)
             InkWell(
+              key: i == 1 ? TourKeys.navReminders : (i == 2 ? TourKeys.navStats : null),
               onTap: () => onSelect(i),
               child: SizedBox(
                 height: 72,

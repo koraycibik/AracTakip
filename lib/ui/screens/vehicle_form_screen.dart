@@ -359,6 +359,10 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
             ),
           ],
         ),
+        if (!_isEdit)
+          const FieldNote(
+              'Güncel km önemli: bakımın ne zaman geleceğini senin kullanımına göre tahmin ederiz. '
+              'Yakıt alırken km yazdıkça tahmin keskinleşir.'),
         const SizedBox(height: 14),
         const FieldLabel('Yakıt tipi'),
         LayoutBuilder(builder: (context, c) {
@@ -433,6 +437,8 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
           firstDate: DateTime.now().subtract(const Duration(days: 365)),
           onChanged: (d) => setState(() => _traffic = d),
         ),
+        const FieldNote('Muayene ve sigorta bitmeden 30, 7 ve 1 gün önce bildirim göndeririz.',
+            icon: Icons.notifications_none),
         const SizedBox(height: 12),
         DateField(
           label: 'Kasko bitişi',
@@ -472,6 +478,8 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
           keyboardType: TextInputType.number,
           inputFormatters: [ThousandsFormatter()],
         ),
+        const FieldNote('Bilirsen bir sonraki bakıma kaç km kaldığını hemen hesaplarız. '
+            'Diğer kalemleri (triger, balata, filtreler) sonra bakım planından eklersin.'),
         const SizedBox(height: 14),
         Container(
           padding: const EdgeInsets.all(12),

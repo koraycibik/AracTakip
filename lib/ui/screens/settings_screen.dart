@@ -79,6 +79,14 @@ class SettingsScreen extends StatelessWidget {
                     _GroupTitle('HAKKINDA'),
                     _Group(children: [
                       _Row(
+                        title: 'Uygulama turunu tekrar izle',
+                        onTap: () {
+                          store.resetTips();
+                          toast(context, 'Tur birazdan garajda başlayacak.');
+                          Navigator.of(context).popUntil((r) => r.isFirst);
+                        },
+                      ),
+                      _Row(
                         title: 'KVKK aydınlatma metni',
                         onTap: () => _openText(context, 'KVKK aydınlatma metni', _kvkkSummary),
                       ),

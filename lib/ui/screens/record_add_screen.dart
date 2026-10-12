@@ -11,6 +11,7 @@ import '../../data/models.dart';
 import '../../data/presets.dart';
 import '../../logic/workshops.dart';
 import '../../services/ad_service.dart';
+import '../widgets/coach.dart';
 import '../widgets/common.dart';
 import 'vehicle_form_screen.dart';
 
@@ -348,11 +349,17 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
                             ),
                             const SizedBox(width: 10),
                             Expanded(
-                              child: LabeledField(
-                                label: 'Kilometre',
-                                controller: _km,
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [ThousandsFormatter()],
+                              child: TipAnchor(
+                                tipKey: 'tip_record_km',
+                                title: 'Km\'yi de yaz',
+                                text: 'Araç göstergesindeki km\'yi girersen 100 km\'nin sana kaça mal olduğunu '
+                                    've bir sonraki bakımın ne zaman geleceğini hesaplarız.',
+                                child: LabeledField(
+                                  label: 'Kilometre',
+                                  controller: _km,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [ThousandsFormatter()],
+                                ),
                               ),
                             ),
                           ],

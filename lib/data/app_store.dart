@@ -269,6 +269,24 @@ class AppStore extends ChangeNotifier {
   // Ayarlar
   // -------------------------------------------------------------------------
 
+  // -------------------------------------------------------------------------
+  // Tanıtım: görülen ipuçları ve "Tekerim'i tanı" maddeleri
+  // -------------------------------------------------------------------------
+
+  bool seen(String key) => settings.seenTips.contains(key);
+
+  void markSeen(String key) {
+    if (settings.seenTips.add(key)) _changed();
+  }
+
+  /// Ayarlar > "Uygulama turunu tekrar izle": tur ve ipuçları yeniden gösterilir
+  /// (tamamlanan "done_" maddeleri korunur).
+  void resetTips() {
+    settings.seenTips.removeWhere((k) => !k.startsWith('done_'));
+    settings.checklistDismissed = false;
+    _changed();
+  }
+
   void updateSettings(void Function(AppSettings s) change) {
     change(settings);
     _changed();
@@ -335,6 +353,7 @@ class AppStore extends ChangeNotifier {
     v.kmLog.add(KmPoint(d, km));
     // Kayıt listesi şişmesin: son 200 noktayı tut.
     if (v.kmLog.length > 200) v.kmLog.removeRange(0, v.kmLog.length - 200);
+    settings.seenTips.add('done_km'); // "Tekerim'i tanı" maddesi
     _changed();
   }
 
@@ -410,6 +429,9 @@ class AppStore extends ChangeNotifier {
   // -------------------------------------------------------------------------
   // Usta defteri: puan ve not
   // -------------------------------------------------------------------------
+
+  /// En az bir ustaya puan verildi mi? ("Tekerim'i tanı" maddesi)
+  bool get hasRatedWorkshop => _reviews.any((r) => r.rating > 0);
 
   WorkshopReview? reviewFor(String workshopKey) {
     for (final r in _reviews) {
