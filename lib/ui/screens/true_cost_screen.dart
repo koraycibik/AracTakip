@@ -135,7 +135,7 @@ class _TrueCostScreenState extends State<TrueCostScreen> {
                         Row(
                           children: [
                             Expanded(
-                              child: Text(perKm == null ? 'Neye gidiyor?' : 'Km başına neye gidiyor?',
+                              child: Text(perKm == null ? 'Kullanım giderleri' : 'Km başına kullanım gideri',
                                   style: display(16, weight: FontWeight.w700)),
                             ),
                             Text(c.km > 0 ? '${thousands(c.km)} km' : 'km verisi yok',
@@ -146,8 +146,11 @@ class _TrueCostScreenState extends State<TrueCostScreen> {
                           const SizedBox(height: 8),
                           const Align(alignment: Alignment.centerLeft, child: LpgSplitToggle()),
                         ],
-                        const SizedBox(height: 10),
-                        for (final g in c.groups)
+                        const SizedBox(height: 4),
+                        Text('Yol yaptıkça artan giderler: yakıt, bakım ve lastik.',
+                            style: body(12, color: AppColors.inkSoft)),
+                        const SizedBox(height: 8),
+                        for (final g in c.usageGroups)
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 7),
                             child: Row(
@@ -170,6 +173,21 @@ class _TrueCostScreenState extends State<TrueCostScreen> {
                               ],
                             ),
                           ),
+                        if (c.usagePerKmKurus != null) ...[
+                          const Divider(height: 18, color: AppColors.divider),
+                          Row(
+                            children: [
+                              Expanded(child: Text('Toplam', style: body(14, weight: FontWeight.w800))),
+                              Text(money(c.usageKurus), style: body(14, weight: FontWeight.w800)),
+                              SizedBox(
+                                width: 72,
+                                child: Text(moneyPerKm(c.usagePerKmKurus!),
+                                    textAlign: TextAlign.right,
+                                    style: body(13, weight: FontWeight.w800, color: AppColors.ink)),
+                              ),
+                            ],
+                          ),
+                        ],
                         if (perKm == null) ...[
                           const SizedBox(height: 6),
                           Text('Km başı maliyet için kayıtlara km gir ya da kilometreyi düzenli güncelle.',
@@ -178,6 +196,44 @@ class _TrueCostScreenState extends State<TrueCostScreen> {
                       ],
                     ),
                   ),
+                  if (c.fixedGroups.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    AppCard(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text('Sabit giderler', style: display(16, weight: FontWeight.w700)),
+                          const SizedBox(height: 4),
+                          Text('Araç dursa da ödenenler; km\'ye değil zamana göre.',
+                              style: body(12, color: AppColors.inkSoft)),
+                          const SizedBox(height: 8),
+                          for (final g in c.fixedGroups)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 7),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: BoxDecoration(color: g.color, borderRadius: BorderRadius.circular(3)),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(child: Text(g.label, style: body(14, weight: FontWeight.w600))),
+                                  Text(money(g.kurus), style: body(14, weight: FontWeight.w700)),
+                                  SizedBox(
+                                    width: 84,
+                                    child: Text('${money(c.groupPerMonth(g))}/ay',
+                                        textAlign: TextAlign.right,
+                                        style: body(13, weight: FontWeight.w600, color: AppColors.inkSoft)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                   if (compare.length > 1) ...[
                     const SizedBox(height: 12),
                     AppCard(

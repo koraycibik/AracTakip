@@ -46,7 +46,8 @@ class _StatsScreenState extends State<StatsScreen> {
   @override
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
-    final allVehicles = store.vehicles;
+    // Satılan (devredilen) araçların harcamaları da genel özette görünür.
+    final allVehicles = [...store.vehicles, ...store.archivedVehicles];
     final sel = effectiveSelection(_vehicleIds, allVehicles);
     final vehicles = allVehicles.where((v) => sel.contains(v.id)).toList();
 

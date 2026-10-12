@@ -60,10 +60,10 @@ class _WorkshopsScreenState extends State<WorkshopsScreen> {
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
     final ids = effectiveSelection(_vehicleIds, store.vehicles);
-    final records = store.allRecords.where((r) => _kinds.contains(_kindOf(r))).toList();
+    final records = store.historyRecords.where((r) => _kinds.contains(_kindOf(r))).toList();
     final list = computeWorkshops(records, vehicleIds: ids);
     if (_onlyRated) list.removeWhere((w) => (store.reviewFor(w.key)?.rating ?? 0) == 0);
-    final hasAny = computeWorkshops(store.allRecords, vehicleIds: {for (final v in store.vehicles) v.id}).isNotEmpty;
+    final hasAny = computeWorkshops(store.historyRecords, vehicleIds: {for (final v in store.vehicles) v.id}).isNotEmpty;
     if (_sort == 1) list.sort((a, b) => b.lastDate.compareTo(a.lastDate));
     if (_sort == 2) {
       int r(Workshop w) => store.reviewFor(w.key)?.rating ?? 0;
@@ -621,7 +621,7 @@ class WorkshopsLinkCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
     final ids = {for (final v in store.vehicles) v.id};
-    final list = computeWorkshops(store.allRecords, vehicleIds: ids);
+    final list = computeWorkshops(store.historyRecords, vehicleIds: ids);
     return AppCard(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WorkshopsScreen())),

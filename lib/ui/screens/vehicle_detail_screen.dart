@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../../core/features.dart';
 import '../../core/format.dart';
 import '../../core/layout.dart';
 import '../../core/theme.dart';
@@ -11,6 +12,7 @@ import '../../data/models.dart';
 import '../../logic/maintenance.dart';
 import '../../logic/reminders.dart';
 import '../../logic/true_cost.dart';
+import '../../services/transfer_service.dart';
 import '../widgets/coach.dart';
 import '../widgets/common.dart';
 import '../widgets/dialogs.dart';
@@ -18,6 +20,7 @@ import 'accident_screen.dart';
 import 'maintenance_plan_screen.dart';
 import 'record_add_screen.dart';
 import 'service_history_screen.dart';
+import 'transfer_screen.dart';
 import 'true_cost_screen.dart';
 import 'vehicle_form_screen.dart';
 
@@ -104,6 +107,16 @@ class VehicleDetailView extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (kCloudEnabled) ...[
+                  const SizedBox(height: 10),
+                  TipAnchor(
+                    tipKey: 'tip_transfer',
+                    title: 'Aracını mı satıyorsun?',
+                    text: 'Bakım geçmişini, km kayıtlarını ve usta notlarını tek dokunuşla yeni sahibinin '
+                        'Tekerim hesabına aktar.',
+                    child: _TransferTile(vehicle: v),
+                  ),
+                ],
                 const SizedBox(height: 18),
                 SectionHeader(
                   'Son kayıtlar',
@@ -526,6 +539,54 @@ class _StatusTile extends StatelessWidget {
   }
 }
 
+/// "Aracı devret" kartı: varsa gönderilen teklifin durumunu da gösterir.
+class _TransferTile extends StatelessWidget {
+  const _TransferTile({required this.vehicle});
+  final Vehicle vehicle;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<Map<String, TransferOffer>>(
+      valueListenable: TransferService.instance.outgoing,
+      builder: (context, out, _) {
+        final o = out[vehicle.id];
+        final (sub, color) = switch (o?.status) {
+          TransferStatus.pending when o!.expired => ('Teklifin süresi doldu · tekrar gönder', AppColors.soonText),
+          TransferStatus.pending => ('Teklif bekliyor · ${o!.toEmail}', AppColors.soonText),
+          TransferStatus.declined => ('Reddedildi · tekrar gönderebilirsin', AppColors.lateText),
+          TransferStatus.blocked => ('Alıcı teklif almak istemiyor', AppColors.lateText),
+          _ => ('Satarken geçmişini yeni sahibine aktar', AppColors.inkSoft),
+        };
+        return AppCard(
+          radius: 18,
+          padding: const EdgeInsets.all(12),
+          onTap: () => Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => TransferScreen(vehicleId: vehicle.id))),
+          child: Row(
+            children: [
+              const TintIcon(Icons.swap_horiz, AppColors.navy, AppColors.catMaintTint, size: 40),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Aracı devret', style: body(14, weight: FontWeight.w700)),
+                    Text(sub,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: body(12, weight: FontWeight.w600, color: color)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppColors.ink),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _LinkTile extends StatelessWidget {
   const _LinkTile({
     required this.icon,
@@ -606,6 +667,15 @@ class RecordTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: body(12, color: AppColors.inkSoft)),
+                if (r.fromPreviousOwner)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(color: AppColors.catOtherTint, borderRadius: BorderRadius.circular(99)),
+                      child: Text('Önceki sahip', style: body(10, weight: FontWeight.w700, color: AppColors.catOther)),
+                    ),
+                  ),
                 if (r.note != null && r.note!.trim().isNotEmpty && r.category != RecordCategory.other)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),

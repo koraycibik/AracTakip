@@ -7,6 +7,8 @@
 
 import 'dart:math';
 
+import '../core/format.dart' show plateKey;
+
 /// Benzersiz kimlik üretir (Firestore belge kimliği gibi 20 karakter).
 String newId() {
   const chars =
@@ -180,6 +182,10 @@ class Vehicle {
     this.mtvReminder = true,
     this.sortOrder = 0,
     this.archived = false,
+    this.archivedAt,
+    this.soldTo,
+    this.receivedFrom,
+    this.receivedAt,
     required this.createdAt,
   }) : kmLog = kmLog ?? [];
 
@@ -202,6 +208,14 @@ class Vehicle {
   bool mtvReminder;
   int sortOrder;
   bool archived;
+
+  /// Devredilip arşivlendiği tarih ve alıcının e-postası (satıcı tarafı).
+  DateTime? archivedAt;
+  String? soldTo;
+
+  /// Devir yoluyla geldiyse: önceki sahip (ad ya da e-posta) ve devir tarihi.
+  String? receivedFrom;
+  DateTime? receivedAt;
   final DateTime createdAt;
 
   String get title {
@@ -210,8 +224,7 @@ class Vehicle {
   }
 
   /// "34 KRC 115" -> "34KRC115" (aynı plakayı iki kez eklemeyi önlemek için).
-  String get plateNormalized =>
-      plate.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9ÇĞİÖŞÜ]'), '');
+  String get plateNormalized => plateKey(plate);
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -232,6 +245,10 @@ class Vehicle {
         'mtvReminder': mtvReminder,
         'sortOrder': sortOrder,
         'archived': archived,
+        'archivedAt': _iso(archivedAt),
+        'soldTo': soldTo,
+        'receivedFrom': receivedFrom,
+        'receivedAt': _iso(receivedAt),
         'createdAt': _iso(createdAt),
       };
 
@@ -255,6 +272,10 @@ class Vehicle {
         mtvReminder: j['mtvReminder'] as bool? ?? true,
         sortOrder: j['sortOrder'] as int? ?? 0,
         archived: j['archived'] as bool? ?? false,
+        archivedAt: _date(j['archivedAt']),
+        soldTo: j['soldTo'] as String?,
+        receivedFrom: j['receivedFrom'] as String?,
+        receivedAt: _date(j['receivedAt']),
         createdAt: _date(j['createdAt']) ?? DateTime.now(),
       );
 }
@@ -279,6 +300,7 @@ class ExpenseRecord {
     this.note,
     this.dueDate,
     this.insuranceKind,
+    this.fromPreviousOwner = false,
     required this.createdAt,
   }) : jobs = jobs ?? [];
 
@@ -305,6 +327,10 @@ class ExpenseRecord {
 
   /// LPG alımı mı? (Yakıt kaydında Benzin / LPG seçimi.)
   bool get isLpg => category == RecordCategory.fuel && fuelKind == 'lpg';
+
+  /// Araç devriyle önceki sahipten geldi: geçmişte görünür, harcama
+  /// hesaplarına (istatistik, gerçek maliyet, ay özeti) katılmaz.
+  bool fromPreviousOwner;
   final DateTime createdAt;
 
   /// Listede gösterilecek başlık.
@@ -356,6 +382,7 @@ class ExpenseRecord {
         'note': note,
         'dueDate': _iso(dueDate),
         'insuranceKind': insuranceKind,
+        if (fromPreviousOwner) 'fromPreviousOwner': true,
         'createdAt': _iso(createdAt),
       };
 
@@ -374,6 +401,7 @@ class ExpenseRecord {
         note: j['note'] as String?,
         dueDate: _date(j['dueDate']),
         insuranceKind: j['insuranceKind'] as String?,
+        fromPreviousOwner: j['fromPreviousOwner'] as bool? ?? false,
         createdAt: _date(j['createdAt']) ?? DateTime.now(),
       );
 }

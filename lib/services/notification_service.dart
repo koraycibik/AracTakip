@@ -25,7 +25,7 @@ class NotificationService {
   bool _ready = false;
   Timer? _debounce;
 
-  /// Bildirime dokunulunca gelen yük: 'reminders', 'km:<aracId>' veya 'summary:<yıl>-<ay>'.
+  /// Bildirime dokunulunca gelen yük: `reminders`, `km:<aracId>` veya `summary:<yıl>-<ay>`.
   final tappedPayload = ValueNotifier<String?>(null);
 
   static const _channel = AndroidNotificationDetails(
@@ -90,7 +90,8 @@ class NotificationService {
   Future<void> reschedule(AppStore store) async {
     if (!_ready) return;
     try {
-      await _plugin.cancelAll();
+      // Sadece planlı bildirimleri sil; ekranda duran (ör. devir teklifi) kalsın.
+      await _plugin.cancelAllPendingNotifications();
       final s = store.settings;
       if (!s.notificationsEnabled) return;
 
@@ -180,6 +181,17 @@ class NotificationService {
       }
     } catch (e) {
       debugPrint('Bildirimler planlanamadı: $e');
+    }
+  }
+
+  /// Hemen gösterilen bildirim (ör. araç devir teklifi geldi).
+  /// Planlı bildirimler 1–60 arası kimlik kullanır; bunlar 900 ve sonrası.
+  Future<void> showNow({required int id, required String title, required String body, String? payload}) async {
+    if (!_ready) return;
+    try {
+      await _plugin.show(id: id, title: title, body: body, notificationDetails: _details, payload: payload);
+    } catch (e) {
+      debugPrint('Bildirim gösterilemedi: $e');
     }
   }
 

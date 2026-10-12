@@ -165,7 +165,9 @@ ForecastResult computeForecast({
   }
   out.sort((a, b) => a.date.compareTo(b.date));
 
-  // Yakıt + şarj: son 90 günün günlük ortalaması (araç daha yeniyse ilk kayıttan bu yana).
+  // Yakıt + şarj: son 90 günün dolumlarından günlük ortalama.
+  // Güvenilir olması için en az 5 dolum ve 3 haftalık aralık gerekir; yoksa tahmine katılmaz.
+  // Her dolum bir sonrakine kadar kullanılır: son dolum hariç toplam ÷ ilk ile son dolum arası gün.
   var perDay = 0.0;
   var hasHistory = false;
   for (final v in vehicles) {
@@ -176,14 +178,13 @@ ForecastResult computeForecast({
         .toList();
     if (energy.isEmpty) continue;
     final windowStart = start.subtract(const Duration(days: 90));
-    final inWindow = energy.where((r) => !r.date.isBefore(windowStart)).toList();
-    if (inWindow.isEmpty) continue;
+    final inWindow = energy.where((r) => !r.date.isBefore(windowStart)).toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+    if (inWindow.length < 5) continue;
+    final span = daysBetween(inWindow.first.date, inWindow.last.date);
+    if (span < 21) continue;
     hasHistory = true;
-    final first = inWindow.map((r) => r.date).reduce((a, b) => a.isBefore(b) ? a : b);
-    var span = daysBetween(first, start) + 1;
-    if (span < 14) span = 14; // tek bir dolumla aşırı tahmin yapma
-    if (span > 90) span = 90;
-    final sum = inWindow.fold<int>(0, (s, r) => s + r.amountKurus);
+    final sum = inWindow.fold<int>(0, (s, r) => s + r.amountKurus) - inWindow.last.amountKurus;
     perDay += sum / span;
   }
 

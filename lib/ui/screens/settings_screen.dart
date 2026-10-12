@@ -341,7 +341,7 @@ class _Row extends StatelessWidget {
             Expanded(child: Text(title, style: body(14, weight: FontWeight.w600))),
             if (value != null)
               Text(value!, style: body(14, weight: FontWeight.w700, color: AppColors.link)),
-            if (trailing != null) trailing!,
+            ?trailing,
             if (trailing == null && value == null && onTap != null)
               const Icon(Icons.chevron_right, color: AppColors.inkSoft),
           ],

@@ -11,10 +11,14 @@ import 'km.dart';
 enum CostPeriod { year, all }
 
 class CostGroup {
-  CostGroup(this.label, this.color, this.cats, {this.match});
+  CostGroup(this.label, this.color, this.cats, {this.match, this.usage = true});
   final String label;
   final Color color;
   final Set<RecordCategory> cats;
+
+  /// Kullanıma bağlı (yakıt, bakım) mı, yoksa sabit (sigorta, vergi) mi?
+  /// Sabit giderler km başına değil, aya göre gösterilir.
+  final bool usage;
 
   /// Kategori yerine kayda göre eşleşme (LPG ayrı gösterildiğinde).
   final bool Function(ExpenseRecord r)? match;
@@ -48,6 +52,14 @@ class TrueCost {
   /// Km başı (kuruş, ondalıklı). 100 km'den az yol varsa güvenilir değil → null.
   double? get perKmKurus => km >= 100 ? totalKurus / km : null;
   double? groupPerKm(CostGroup g) => km >= 100 ? g.kurus / km : null;
+  int groupPerMonth(CostGroup g) => (g.kurus / days * 30.4).round();
+
+  List<CostGroup> get usageGroups => groups.where((g) => g.usage).toList();
+  List<CostGroup> get fixedGroups => groups.where((g) => !g.usage && g.kurus > 0).toList();
+  int get usageKurus => usageGroups.fold(0, (s, g) => s + g.kurus);
+
+  /// Sadece kullanıma bağlı giderlerin km başı maliyeti.
+  double? get usagePerKmKurus => km >= 100 ? usageKurus / km : null;
 
   /// Bir aydan kısa veriyle hesaplanan sonuçlar yanıltıcı olabilir.
   bool get isShort => days < 30;
@@ -64,10 +76,11 @@ List<CostGroup> _groups(Vehicle v, bool splitLpg) => [
                   : (v.fuelType.usesCharge ? 'Yakıt ve şarj' : 'Yakıt')),
           AppColors.catFuel,
           {RecordCategory.fuel, RecordCategory.charge}),
-      CostGroup('Sigorta ve kasko', AppColors.catIns, {RecordCategory.insurance}),
+      CostGroup('Sigorta ve kasko', AppColors.catIns, {RecordCategory.insurance}, usage: false),
       CostGroup('Bakım ve lastik', AppColors.catMaint, {RecordCategory.maintenance, RecordCategory.tire}),
-      CostGroup('Vergi, muayene, diğer', AppColors.catTax,
-          {RecordCategory.tax, RecordCategory.inspection, RecordCategory.fine, RecordCategory.other}),
+      CostGroup('Vergi, muayene, ceza, diğer', AppColors.catTax,
+          {RecordCategory.tax, RecordCategory.inspection, RecordCategory.fine, RecordCategory.other},
+          usage: false),
     ];
 
 TrueCost computeTrueCost(Vehicle v, List<ExpenseRecord> records, CostPeriod period, {bool splitLpg = false}) {

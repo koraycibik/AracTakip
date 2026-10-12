@@ -73,6 +73,48 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Araç devri: satıcı alıcının e-postasına teklif yazar (belge kimliği
+    // "{satıcıUid}_{araçId}", araç başına tek teklif). Alıcı, Google ile
+    // doğrulanmış aynı e-postayla giriş yaptıysa okur ve kabul/ret/engel yazar.
+    match /transfers/{transferId} {
+      function isSender() {
+        return signedIn() && resource.data.fromUid == request.auth.uid;
+      }
+      function isRecipient() {
+        return signedIn()
+          && request.auth.token.email != null
+          && request.auth.token.email_verified == true
+          && resource.data.toEmail == request.auth.token.email.lower();
+      }
+      allow read: if isSender() || isRecipient();
+      allow create: if signedIn()
+        && transferId == request.auth.uid + '_' + request.resource.data.vehicleId
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.toEmail is string
+        && request.resource.data.toEmail.size() <= 120
+        && request.resource.data.status == 'pending'
+        && request.resource.data.attempts is int
+        && request.resource.data.attempts >= 1
+        && request.resource.data.attempts <= 3;
+      allow update: if
+        // Satıcı: tekrar gönderir ya da iptal eder (alıcı engellediyse yapamaz).
+        (isSender()
+          && resource.data.status != 'blocked'
+          && request.resource.data.fromUid == request.auth.uid
+          && request.resource.data.vehicleId == resource.data.vehicleId
+          && request.resource.data.status in ['pending', 'cancelled']
+          && request.resource.data.attempts is int
+          && request.resource.data.attempts <= 3)
+        // Alıcı: durumu ve cevap tarihini yazar. Reddederken satıcının verisini
+        // (payload) de siler; böylece reddedilen teklifte veri kalmaz.
+        || (isRecipient()
+          && resource.data.status == 'pending'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'respondedAt', 'payload'])
+          && (request.resource.data.status == 'accepted'
+              || (request.resource.data.status in ['declined', 'blocked'] && request.resource.data.payload == null)));
+      allow delete: if isSender() && resource.data.status != 'blocked';
+    }
+
     // Paylaşılan araç raporu: bağlantıyı bilen herkes 30 gün okuyabilir.
     match /shares/{shareId} {
       allow get: if resource.data.revoked == false

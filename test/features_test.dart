@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:arac_takip/core/format.dart';
 import 'package:arac_takip/data/models.dart';
 import 'package:arac_takip/data/vehicle_catalog.dart';
 import 'package:arac_takip/data/app_store.dart';
@@ -175,5 +176,72 @@ void main() {
       plan: const [],
     );
     expect(bad.kmConsistent, false);
+  });
+
+  test('devir: geçmiş yeni sahibe geçer, harcamalara karışmaz; satıcıda arşivlenir', () {
+    final seller = AppStore();
+    seller.replaceAll({
+      'vehicles': [
+        {'id': 'v1', 'plate': '34 ABC 1', 'type': 'car', 'brand': 'Fiat', 'model': 'Egea', 'fuelType': 'gasoline',
+         'currentKm': 60000, 'trafficInsuranceEndDate': DateTime(2027, 1, 1).toIso8601String()}
+      ],
+      'records': [
+        {'id': 'r1', 'vehicleId': 'v1', 'category': 'maintenance', 'date': DateTime(2026, 3, 1).toIso8601String(),
+         'amountKurus': 450000, 'km': 55000, 'jobs': ['timing_belt'], 'serviceName': 'Özgür Oto'},
+        {'id': 'r2', 'vehicleId': 'v1', 'category': 'fuel', 'date': DateTime(2026, 9, 1).toIso8601String(),
+         'amountKurus': 150000},
+      ],
+      'workshopReviews': [
+        {'key': normalizeTr('Özgür Oto'), 'name': 'Özgür Oto', 'rating': 5, 'note': 'Temiz iş', 'updatedAt': DateTime.now().toIso8601String()}
+      ],
+    });
+    final payload = seller.exportForTransfer('v1');
+    expect((payload['records'] as List).length, 1); // yakıt gitmez
+    expect((payload['vehicle'] as Map)['trafficInsuranceEndDate'], null);
+
+    final buyer = AppStore();
+    final v = buyer.importTransfer(payload, from: 'Koray');
+    expect(buyer.vehicles.single.id, v.id);
+    expect(buyer.allRecords, isEmpty); // harcamalara karışmaz
+    expect(buyer.historyRecords.single.amountKurus, 450000);
+    expect(buyer.historyRecords.single.fromPreviousOwner, true);
+    expect(buyer.reviewFor(normalizeTr('Özgür Oto'))!.note, 'Temiz iş');
+
+    seller.archiveVehicle('v1', soldTo: 'alici@gmail.com');
+    expect(seller.vehicles, isEmpty);
+    expect(seller.archivedVehicles.single.soldTo, 'alici@gmail.com');
+    expect(seller.allRecords.length, 2); // satıcının harcama özeti kalır
+  });
+
+  test('plaka tek tip yazılır', () {
+    expect(formatPlate('34abc123'), '34 ABC 123');
+    expect(formatPlate('34 a  1234'), '34 A 1234');
+    expect(formatPlate('06ıı55'), '06 II 55');
+    expect(formatPlate('34A'), '34 A');
+    expect(plateKey('34 ABC 123'), '34ABC123');
+  });
+
+  test('devir: alıcıda aynı plakalı araç varsa geçmiş onun üzerine eklenir', () {
+    final seller = AppStore();
+    seller.replaceAll({
+      'vehicles': [
+        {'id': 'v1', 'plate': '34abc123', 'type': 'car', 'brand': 'Fiat', 'model': 'Egea', 'fuelType': 'gasoline', 'currentKm': 70000}
+      ],
+      'records': [
+        {'id': 'r1', 'vehicleId': 'v1', 'category': 'tire', 'date': DateTime(2026, 4, 1).toIso8601String(), 'amountKurus': 800000, 'km': 65000},
+      ],
+    });
+    final buyer = AppStore();
+    buyer.replaceAll({
+      'vehicles': [
+        {'id': 'b1', 'plate': '34 ABC 123', 'type': 'car', 'brand': '', 'model': '', 'fuelType': 'gasoline', 'currentKm': 60000}
+      ],
+    });
+    final v = buyer.importTransfer(seller.exportForTransfer('v1'), from: 'Koray');
+    expect(buyer.vehicles.length, 1);
+    expect(v.id, 'b1');
+    expect(v.currentKm, 70000);
+    expect(v.brand, 'Fiat');
+    expect(buyer.historyRecords.single.vehicleId, 'b1');
   });
 }

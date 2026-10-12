@@ -357,7 +357,7 @@ class CloudService {
   // Tarih alanları bulutta Timestamp, telefonda ISO metin.
   static const _dateKeys = {
     'date', 'createdAt', 'kmUpdatedAt', 'inspectionDueDate', 'trafficInsuranceEndDate',
-    'cascoEndDate', 'dueDate', 'lastDoneDate', 'decidedAt', 'snoozedUntil', 'linkCardDismissedAt', 'updatedAt',
+    'cascoEndDate', 'dueDate', 'lastDoneDate', 'decidedAt', 'snoozedUntil', 'linkCardDismissedAt', 'updatedAt', 'archivedAt', 'receivedAt',
   };
 
   static dynamic _toCloudValue(String? key, dynamic v) {
@@ -591,6 +591,11 @@ class CloudService {
     refs.addAll(rem.docs.map((d) => d.reference));
     final ws = await root.collection('workshops').get();
     refs.addAll(ws.docs.map((d) => d.reference));
+    // Gönderdiği devir teklifleri (alıcı engellediyse silinemez; onlar kalır).
+    try {
+      final tr = await _db.collection('transfers').where('fromUid', isEqualTo: uid).get();
+      refs.addAll(tr.docs.where((d) => d.data()['status'] != 'blocked').map((d) => d.reference));
+    } catch (_) {}
     refs.add(root);
     for (var i = 0; i < refs.length; i += 450) {
       final batch = _db.batch();

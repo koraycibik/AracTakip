@@ -16,6 +16,7 @@ import '../logic/maintenance.dart';
 import '../logic/reminders.dart';
 import 'models.dart';
 import 'presets.dart';
+import 'vehicle_catalog.dart' show normalizeTr;
 
 class AppStore extends ChangeNotifier {
   static const _storageKey = 'arac_takip_data_v1';
@@ -89,6 +90,18 @@ class AppStore extends ChangeNotifier {
   /// Eski "LPG" yakıt tipindeki araçları "Benzin + LPG"ye çevirir; o araçların türü
   /// belirtilmemiş yakıt kayıtlarını LPG sayar. Değişiklik olduysa true döner.
   static bool _migrateLegacyLpg(Map<String, dynamic> j) {
+    // Plakaları tek tip yaz ("34abc123", "34 ABC  123" → "34 ABC 123").
+    var changed = false;
+    for (final v in (j['vehicles'] as List? ?? const [])) {
+      if (v is Map && v['plate'] is String) {
+        final f = formatPlate(v['plate'] as String);
+        if (f != v['plate']) {
+          v['plate'] = f;
+          v['plateNormalized'] = plateKey(f);
+          changed = true;
+        }
+      }
+    }
     final lpgIds = <String>{};
     for (final v in (j['vehicles'] as List? ?? const [])) {
       if (v is Map && v['fuelType'] == 'lpg') {
@@ -96,7 +109,7 @@ class AppStore extends ChangeNotifier {
         lpgIds.add(v['id'] as String);
       }
     }
-    if (lpgIds.isEmpty) return false;
+    if (lpgIds.isEmpty) return changed;
     for (final r in (j['records'] as List? ?? const [])) {
       if (r is Map && r['category'] == 'fuel' && lpgIds.contains(r['vehicleId']) && r['fuelKind'] == null) {
         r['fuelKind'] = 'lpg';
@@ -163,7 +176,20 @@ class AppStore extends ChangeNotifier {
     return l;
   }
 
-  List<ExpenseRecord> get allRecords => List.unmodifiable(_records);
+  /// Devredilip arşivlenen (satılan) araçlar; sadece özet için okunur.
+  List<Vehicle> get archivedVehicles {
+    final l = _vehicles.where((v) => v.archived).toList();
+    l.sort((a, b) => (b.archivedAt ?? b.createdAt).compareTo(a.archivedAt ?? a.createdAt));
+    return l;
+  }
+
+  /// Kullanıcının kendi giderleri (harcama hesapları bunu kullanır).
+  /// Devirle önceki sahipten gelen kayıtlar dahil değil.
+  List<ExpenseRecord> get allRecords =>
+      List.unmodifiable(_records.where((r) => !r.fromPreviousOwner));
+
+  /// Geçmiş, rapor ve usta defteri için: önceki sahipten gelenler dahil tüm kayıtlar.
+  List<ExpenseRecord> get historyRecords => List.unmodifiable(_records);
   List<MaintenanceItem> get allItems => List.unmodifiable(_items);
   List<ReminderDecision> get decisions => List.unmodifiable(_decisions);
 
@@ -231,7 +257,7 @@ class AppStore extends ChangeNotifier {
     final now = DateTime.now();
     var t = 0;
     for (final r in _records) {
-      if (r.vehicleId == vehicleId && r.date.year == now.year && r.date.month == now.month) {
+      if (r.vehicleId == vehicleId && !r.fromPreviousOwner && r.date.year == now.year && r.date.month == now.month) {
         t += r.amountKurus;
       }
     }
@@ -296,9 +322,16 @@ class AppStore extends ChangeNotifier {
   // Araçlar
   // -------------------------------------------------------------------------
 
-  bool plateExists(String plate, {String? exceptId}) {
-    final n = plate.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9ÇĞİÖŞÜ]'), '');
-    return _vehicles.any((v) => v.id != exceptId && !v.archived && v.plateNormalized == n);
+  bool plateExists(String plate, {String? exceptId}) => vehicleByPlate(plate, exceptId: exceptId) != null;
+
+  /// Garajdaki (satılmamış) aynı plakalı araç.
+  Vehicle? vehicleByPlate(String plate, {String? exceptId}) {
+    final n = plateKey(plate);
+    if (n.isEmpty) return null;
+    for (final v in _vehicles) {
+      if (v.id != exceptId && !v.archived && v.plateNormalized == n) return v;
+    }
+    return null;
   }
 
   /// Aracı ekler ve türüne/yakıtına göre bakım planını oluşturur.
@@ -331,6 +364,138 @@ class AppStore extends ChangeNotifier {
   }
 
   void updateVehicle(Vehicle v) {
+    _changed();
+  }
+
+  // -------------------------------------------------------------------------
+  // Araç devri
+  // -------------------------------------------------------------------------
+
+  /// Devirde yeni sahibe gidecek veri: araç, bakım/lastik/muayene kayıtları
+  /// (tutarlarıyla), bakım planı, kaza kayıtları ve bu kayıtlardaki ustalara
+  /// verilen puan/notlar. Yakıt, sigorta, vergi, ceza ve sigorta tarihleri gitmez.
+  Map<String, dynamic> exportForTransfer(String vehicleId) {
+    final v = vehicle(vehicleId)!;
+    final vj = v.toJson()
+      ..['trafficInsuranceEndDate'] = null
+      ..['cascoEndDate'] = null
+      ..['archived'] = false
+      ..remove('archivedAt')
+      ..remove('soldTo');
+    final recs = _records.where((r) => r.vehicleId == vehicleId && r.category.isServiceHistory).toList();
+    final shopKeys = <String>{
+      for (final r in recs)
+        if (r.serviceName != null && r.serviceName!.trim().isNotEmpty) normalizeTr(r.serviceName!),
+    };
+    return {
+      'vehicle': vj,
+      'records': [for (final r in recs) r.toJson()],
+      'maintenanceItems': [for (final i in _items.where((i) => i.vehicleId == vehicleId)) i.toJson()],
+      'accidents': [for (final a in _accidents.where((a) => a.vehicleId == vehicleId)) a.toJson()],
+      'workshopReviews': [for (final w in _reviews.where((w) => shopKeys.contains(w.key))) w.toJson()],
+    };
+  }
+
+  /// Devir teklifini kabul edince aracı ve geçmişini bu garaja ekler.
+  /// Kimlikler yenilenir; kayıtlar "önceki sahip" olarak işaretlenir.
+  Vehicle importTransfer(Map<String, dynamic> payload, {String? from}) {
+    List<Map<String, dynamic>> list(String k) => ((payload[k] as List?) ?? [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+    final now = DateTime.now();
+    final vj = Map<String, dynamic>.from(payload['vehicle'] as Map);
+    vj['plate'] = formatPlate(vj['plate'] as String? ?? '');
+    final incoming = Vehicle.fromJson(vj);
+
+    // Garajda aynı plakalı araç varsa geçmiş onun üzerine eklenir.
+    final existing = vehicleByPlate(incoming.plate);
+    final Vehicle v;
+    if (existing != null) {
+      v = existing;
+      if (incoming.currentKm > v.currentKm) {
+        v
+          ..currentKm = incoming.currentKm
+          ..kmUpdatedAt = incoming.kmUpdatedAt;
+      }
+      final days = {for (final p in v.kmLog) '${p.date.toIso8601String()}|${p.km}'};
+      v.kmLog
+        ..addAll(incoming.kmLog.where((p) => !days.contains('${p.date.toIso8601String()}|${p.km}')))
+        ..sort((a, b) => a.date.compareTo(b.date));
+      if (v.brand.trim().isEmpty) v.brand = incoming.brand;
+      if (v.model.trim().isEmpty) v.model = incoming.model;
+      v.year ??= incoming.year;
+      v.inspectionDueDate ??= incoming.inspectionDueDate;
+      v
+        ..receivedFrom = from
+        ..receivedAt = now;
+    } else {
+      vj
+        ..['id'] = newId()
+        ..['archived'] = false
+        ..['createdAt'] = now.toIso8601String()
+        ..['receivedFrom'] = from
+        ..['receivedAt'] = now.toIso8601String()
+        ..['sortOrder'] = _vehicles.isEmpty
+            ? 0
+            : _vehicles.map((e) => e.sortOrder).reduce((a, b) => a > b ? a : b) + 1;
+      v = Vehicle.fromJson(vj);
+      _vehicles.add(v);
+    }
+    final vid = v.id;
+    for (final r in list('records')) {
+      _records.add(ExpenseRecord.fromJson(r
+        ..['id'] = newId()
+        ..['vehicleId'] = vid
+        ..['fromPreviousOwner'] = true));
+    }
+    for (final i in list('maintenanceItems')) {
+      final item = MaintenanceItem.fromJson(i
+        ..['id'] = newId()
+        ..['vehicleId'] = vid);
+      // Aynı kalem varsa (ör. periyodik bakım) daha yeni "son yapıldı" bilgisi alınır.
+      MaintenanceItem? same;
+      for (final x in _items) {
+        if (x.vehicleId != vid) continue;
+        final byPreset = x.presetKey != null && x.presetKey == item.presetKey;
+        final byName = x.name.trim().toLowerCase() == item.name.trim().toLowerCase();
+        if (byPreset || byName) {
+          same = x;
+          break;
+        }
+      }
+      if (same == null) {
+        _items.add(item);
+      } else if (item.lastDoneDate != null &&
+          (same.lastDoneDate == null || item.lastDoneDate!.isAfter(same.lastDoneDate!))) {
+        same
+          ..lastDoneDate = item.lastDoneDate
+          ..lastDoneKm = item.lastDoneKm;
+      }
+    }
+    for (final a in list('accidents')) {
+      _accidents.add(Accident.fromJson(a
+        ..['id'] = newId()
+        ..['vehicleId'] = vid));
+    }
+    for (final w in list('workshopReviews')) {
+      final r = WorkshopReview.fromJson(w);
+      // Kendi değerlendirmen varsa o kalır.
+      if (reviewFor(r.key) == null && !r.isEmpty) _reviews.add(r);
+    }
+    _changed();
+    return v;
+  }
+
+  /// Devir kabul edilince satıcıda araç "Satıldı" olarak arşivlenir;
+  /// harcamaları özette kalır, yeni kayıt eklenemez.
+  void archiveVehicle(String id, {String? soldTo, DateTime? at}) {
+    final v = vehicle(id);
+    if (v == null || v.archived) return;
+    v
+      ..archived = true
+      ..archivedAt = at ?? DateTime.now()
+      ..soldTo = soldTo;
+    _decisions.removeWhere((d) => d.vehicleId == id);
     _changed();
   }
 

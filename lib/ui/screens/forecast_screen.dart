@@ -284,7 +284,8 @@ class ForecastStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
-    if (store.vehicles.isEmpty) return const SizedBox.shrink();
+    // Tahmin ancak yeterli veri olunca anlamlı: en az 6 kayıt.
+    if (store.vehicles.isEmpty || store.allRecords.length <= 5) return const SizedBox.shrink();
     final f = forecastFor(store);
     final big = f.biggest;
     return AppCard(

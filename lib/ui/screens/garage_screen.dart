@@ -15,6 +15,7 @@ import '../widgets/coach.dart';
 import '../widgets/common.dart';
 import '../widgets/dialogs.dart';
 import '../widgets/start_checklist.dart';
+import '../widgets/transfer_widgets.dart';
 import 'forecast_screen.dart';
 import 'reminders_screen.dart';
 import 'settings_screen.dart';
@@ -134,6 +135,7 @@ class _GarageList extends StatelessWidget {
                     child: _LinkCard(onTap: () => showLinkAccountSheet(context)),
                   ),
           ),
+        const IncomingTransfersCard(),
         if (vehicles.isEmpty)
           AppCard(
             padding: const EdgeInsets.all(8),
@@ -176,6 +178,7 @@ class _GarageList extends StatelessWidget {
             ],
           ],
         ],
+        const SoldVehiclesLink(),
       ],
     );
   }

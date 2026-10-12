@@ -120,8 +120,8 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
 
   String? _validateStep1() {
     final store = StoreScope.read(context);
-    final plate = _plate.text.trim();
-    if (plate.length < 4) return 'Plakayı yaz (ör. 34 ABC 123)';
+    final plate = plateKey(_plate.text);
+    if (plate.length < 5) return 'Plakayı yaz (ör. 34 ABC 123)';
     if (store.plateExists(plate, exceptId: _editing?.id)) return 'Bu plaka zaten garajında var';
     if (_brand.text.trim().isEmpty && _model.text.trim().isEmpty) return 'Marka veya model yaz';
     if (parseKm(_km.text) == null) return 'Güncel kilometreyi yaz';
@@ -149,7 +149,7 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
     final store = StoreScope.read(context);
     final v = Vehicle(
       id: newId(),
-      plate: _formatPlate(_plate.text),
+      plate: formatPlate(_plate.text),
       type: _type,
       brand: _brand.text.trim(),
       model: _model.text.trim(),
@@ -174,7 +174,7 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
     final v = _editing!;
     final newKm = parseKm(_km.text) ?? v.currentKm;
     v
-      ..plate = _formatPlate(_plate.text)
+      ..plate = formatPlate(_plate.text)
       ..type = _type
       ..brand = _brand.text.trim()
       ..model = _model.text.trim()
@@ -202,14 +202,6 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
     if (!ok || !mounted) return;
     StoreScope.read(context).deleteVehicle(v.id);
     Navigator.of(context).popUntil((r) => r.isFirst);
-  }
-
-  /// "34abc123" -> "34 ABC 123"
-  String _formatPlate(String raw) {
-    final s = raw.toUpperCase().replaceAll(RegExp(r'\s+'), '');
-    final m = RegExp(r'^(\d{2})([A-ZÇĞİÖŞÜ]{1,3})(\d{2,5})$').firstMatch(s);
-    if (m == null) return raw.toUpperCase().trim();
-    return '${m.group(1)} ${m.group(2)} ${m.group(3)}';
   }
 
   @override
@@ -599,10 +591,10 @@ class _PlateInput extends StatelessWidget {
               child: TextField(
                 controller: controller,
                 textCapitalization: TextCapitalization.characters,
+                // Boşluk yazılamaz; plaka yazılırken "34 ABC 123" diye kendiliğinden bölünür.
                 inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9A-Za-zÇĞİÖŞÜçğıöşü ]')),
-                  LengthLimitingTextInputFormatter(12),
-                  _UpperCase(),
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9A-Za-zıİ]')),
+                  _PlateFormatter(),
                 ],
                 style: display(24, weight: FontWeight.w700, letterSpacing: 2),
                 decoration: const InputDecoration(
@@ -623,11 +615,13 @@ class _PlateInput extends StatelessWidget {
   }
 }
 
-class _UpperCase extends TextInputFormatter {
+class _PlateFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    final t = newValue.text.replaceAll('i', 'İ').replaceAll('ı', 'I').toUpperCase();
-    return newValue.copyWith(text: t);
+    var key = plateKey(newValue.text);
+    if (key.length > 9) key = key.substring(0, 9);
+    final t = formatPlate(key);
+    return TextEditingValue(text: t, selection: TextSelection.collapsed(offset: t.length));
   }
 }
 

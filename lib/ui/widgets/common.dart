@@ -147,6 +147,10 @@ class _PlateChip extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   PlateBadge(vehicle.plate, size: 14, showTr: false),
+                  if (vehicle.archived) ...[
+                    const SizedBox(width: 6),
+                    Text('Satıldı', style: body(11, weight: FontWeight.w700, color: AppColors.inkSoft)),
+                  ],
                   if (multi) ...[
                     const SizedBox(width: 6),
                     Icon(selected ? Icons.check_circle : Icons.radio_button_unchecked,
@@ -743,7 +747,7 @@ class SectionHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(child: Text(title, style: display(17, weight: FontWeight.w700))),
-          if (trailing != null) trailing!,
+          ?trailing,
         ],
       ),
     );
@@ -828,7 +832,7 @@ class ScreenHeader extends StatelessWidget {
               ],
             ),
           ),
-          if (trailing != null) trailing!,
+          ?trailing,
         ],
       ),
     );

@@ -9,6 +9,7 @@ import '../../core/theme.dart';
 import '../../data/app_store.dart';
 import '../../data/models.dart';
 import '../../data/presets.dart';
+import '../../logic/true_cost.dart';
 import '../../logic/workshops.dart';
 import '../../services/ad_service.dart';
 import '../widgets/coach.dart';
@@ -50,7 +51,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
     _initialized = true;
     final store = StoreScope.read(context);
     if (widget.editRecordId != null) {
-      for (final r in store.allRecords) {
+      for (final r in store.historyRecords) {
         if (r.id == widget.editRecordId) _editing = r;
       }
     }
@@ -302,6 +303,8 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
                               : _amountLabel,
                           color: style.color,
                         ),
+                        if (_cat == RecordCategory.fuel || _cat == RecordCategory.charge)
+                          _RangeHint(vehicle: v, amount: _amount),
                         if (_cat == RecordCategory.charge) ...[
                           const SizedBox(height: 12),
                           Row(
@@ -422,7 +425,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
                           ),
                           // Usta defterinden öneriler: aynı usta farklı yazımlarla çoğalmasın.
                           Builder(builder: (context) {
-                            final tips = serviceSuggestions(StoreScope.read(context).allRecords, _service.text);
+                            final tips = serviceSuggestions(StoreScope.read(context).historyRecords, _service.text);
                             if (tips.isEmpty) return const SizedBox.shrink();
                             return Padding(
                               padding: const EdgeInsets.only(top: 8),
@@ -592,6 +595,34 @@ class _CategoryButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Yakıt/şarj tutarının altında: "Bu tutar yaklaşık 540 km'ye yeter · ₺4,85/km".
+class _RangeHint extends StatelessWidget {
+  const _RangeHint({required this.vehicle, required this.amount});
+  final Vehicle vehicle;
+  final TextEditingController amount;
+
+  @override
+  Widget build(BuildContext context) {
+    final per100 = StoreScope.read(context).energyPer100(vehicle);
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: amount,
+      builder: (context, val, _) {
+        final a = parseMoney(val.text);
+        String text;
+        if (per100 == null || per100 <= 0) {
+          text = 'Km\'yi de yazarsan birkaç dolumdan sonra bu tutarın kaç km\'ye yeteceğini ve km başı maliyetini gösteririz.';
+        } else if (a == null || a <= 0) {
+          text = 'Ortalama km başı maliyetin ${moneyPerKm(per100 / 100)} (100 km ${money(per100)}).';
+        } else {
+          final km = (a * 100 / per100).round();
+          text = 'Bu tutar yaklaşık ${thousands(km)} km\'ye yeter · ortalama ${moneyPerKm(per100 / 100)}/km';
+        }
+        return FieldNote(text, icon: Icons.route_outlined);
+      },
     );
   }
 }

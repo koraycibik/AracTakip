@@ -170,3 +170,26 @@ String greeting() {
   if (h < 18) return 'İyi günler';
   return 'İyi akşamlar';
 }
+
+// ---------------------------------------------------------------------------
+// Plaka: tek tip yazım. Kullanıcı boşluk giremez; boşlukları biz koyarız.
+// ---------------------------------------------------------------------------
+
+/// Sadece harf ve rakam, büyük harf ("34 abc 123" → "34ABC123"). Türkçe ı/i → I.
+String plateKey(String raw) {
+  final b = StringBuffer();
+  for (final ch in raw.split('')) {
+    final c = (ch == 'i' || ch == 'ı' || ch == 'İ') ? 'I' : ch.toUpperCase();
+    if (RegExp(r'[A-Z0-9]').hasMatch(c)) b.write(c);
+  }
+  return b.toString();
+}
+
+/// Görünen plaka: "34ABC123" → "34 ABC 123". Yazarken kısmi girişleri de böler
+/// ("34A" → "34 A"). Kalıba uymayan plakalar boşluksuz bırakılır.
+String formatPlate(String raw) {
+  final s = plateKey(raw);
+  final m = RegExp(r'^(\d{1,2})([A-Z]{0,3})(\d{0,5})$').firstMatch(s);
+  if (m == null) return s;
+  return [m.group(1)!, m.group(2)!, m.group(3)!].where((p) => p.isNotEmpty).join(' ');
+}

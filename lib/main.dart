@@ -7,6 +7,7 @@ import 'data/vehicle_catalog.dart';
 import 'services/ad_service.dart';
 import 'services/cloud_service.dart';
 import 'services/notification_service.dart';
+import 'services/transfer_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +29,9 @@ Future<void> main() async {
 
   // Bulut: Firebase, isimsiz hesap ve senkron arka planda başlar; uygulamayı bekletmez.
   CloudService.instance.start(store);
+
+  // Araç devir teklifleri (gelen / gönderilen) oturum açılınca kontrol edilir.
+  TransferService.instance.start(store);
 
   // Marka/model listesini arka planda hazırla.
   VehicleCatalog.instance.load();

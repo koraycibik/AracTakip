@@ -25,7 +25,7 @@ class ReportScreen extends StatelessWidget {
 
   void _share(BuildContext context) {
     if (!kShareEnabled) {
-      toast(context, 'Bağlantıyla paylaşma çok yakında geliyor. Rapor şimdilik sadece sende görünüyor.');
+      toast(context, 'Bağlantıyla paylaşma çok yakında geliyor.');
       return;
     }
     // Bağlantı oluşturma (shares/{id}) bu adımda eklenecek.
@@ -40,11 +40,12 @@ class ReportScreen extends StatelessWidget {
     final service = store.recordsFor(v.id).where((r) => r.category.isServiceHistory).toList();
     final maint = service.where((r) => r.category == RecordCategory.maintenance).toList();
     final accidents = store.accidentsFor(v.id);
-    final rep = computeReport(vehicle: v, records: store.allRecords, plan: store.maintenanceFor(v));
+    final rep = computeReport(vehicle: v, records: store.historyRecords, plan: store.maintenanceFor(v));
     final top = MediaQuery.paddingOf(context).top;
 
     return Scaffold(
-      bottomNavigationBar: !preview
+      // Bağlantıyla paylaşma açılınca alttaki sabit buton görünür.
+      bottomNavigationBar: !(preview && kShareEnabled)
           ? null
           : SafeArea(
               top: false,
@@ -54,27 +55,18 @@ class ReportScreen extends StatelessWidget {
                   color: AppColors.card,
                   border: Border(top: BorderSide(color: AppColors.border)),
                 ),
-                child: MaxWidth(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        kShareEnabled
-                            ? 'Paylaşınca bu raporun o anki kopyası bir bağlantıyla gönderilir, 30 gün geçerlidir.'
-                            : 'Bağlantıyla paylaşma çok yakında. Rapor şimdilik sadece sende.',
-                        textAlign: TextAlign.center,
-                        style: body(12, color: AppColors.inkSoft),
-                      ),
-                      const SizedBox(height: 8),
-                      BigButton(
-                        label: kShareEnabled ? 'Raporu paylaş' : 'Paylaş · yakında',
-                        icon: Icons.ios_share,
-                        dark: !kShareEnabled,
-                        onPressed: () => _share(context),
-                      ),
-                    ],
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Paylaşınca raporun o anki kopyası bir bağlantıyla gönderilir, 30 gün geçerlidir.',
+                      textAlign: TextAlign.center,
+                      style: body(12, color: AppColors.inkSoft),
+                    ),
+                    const SizedBox(height: 8),
+                    BigButton(label: 'Raporu paylaş', icon: Icons.ios_share, onPressed: () => _share(context)),
+                  ],
                 ),
               ),
             ),
@@ -170,6 +162,13 @@ class ReportScreen extends StatelessWidget {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  const SectionHeader('Araç geçmişi'),
+                  const SizedBox(height: 4),
+                  Text('Bakım, lastik, muayene ve kaza kayıtları; en yeniden eskiye.',
+                      style: body(12, color: AppColors.inkSoft)),
+                  const SizedBox(height: 10),
+                  _Timeline(service: service, accidents: accidents, report: rep, vehicle: v),
                   if (rep.kmPoints.length >= 2) ...[
                     const SizedBox(height: 16),
                     const SectionHeader('Kilometre geçmişi'),
@@ -204,47 +203,31 @@ class ReportScreen extends StatelessWidget {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 16),
-                  const SectionHeader('Bakım geçmişi'),
-                  const SizedBox(height: 8),
-                  if (service.isEmpty)
-                    AppCard(child: Text('Kayıtlı bakım yok.', style: body(13, color: AppColors.inkSoft)))
-                  else
-                    AppCard(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                      child: Column(
-                        children: [
-                          for (var i = 0; i < service.length; i++)
-                            _ReportRow(
-                              record: service[i],
-                              last: i == service.length - 1,
-                            ),
-                        ],
-                      ),
-                    ),
-                  const SizedBox(height: 16),
-                  const SectionHeader('Kaza ve hasar kayıtları'),
-                  const SizedBox(height: 8),
-                  if (accidents.isEmpty)
-                    AppCard(
-                        child: Text('Araç sahibi kaza veya hasar kaydı girmemiş.',
-                            style: body(13, color: AppColors.inkSoft)))
-                  else
-                    AppCard(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                      child: Column(
-                        children: [
-                          for (var i = 0; i < accidents.length; i++)
-                            _AccidentRow(accident: accidents[i], last: i == accidents.length - 1),
-                        ],
-                      ),
-                    ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 22),
                   Text(
                     'Bilgiler araç sahibi tarafından girilmiştir · Oluşturulma ${dateNumeric(DateTime.now())} · 30 gün geçerli',
                     textAlign: TextAlign.center,
                     style: body(11, color: AppColors.inkSoft),
                   ),
+                  if (preview && !kShareEnabled) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: AppColors.catMaintTint, borderRadius: BorderRadius.circular(14)),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.ios_share, size: 18, color: AppColors.catMaint),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Bağlantıyla paylaşma çok yakında.',
+                              style: body(12, weight: FontWeight.w600, color: const Color(0xFF1B3FA8)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -457,18 +440,207 @@ class _KmPainter extends CustomPainter {
   bool shouldRepaint(_KmPainter old) => old.points != points;
 }
 
+class _Ev {
+  _Ev({
+    required this.date,
+    required this.icon,
+    required this.color,
+    required this.tint,
+    required this.title,
+    this.meta,
+    this.note,
+    this.chips = const [],
+    this.badge,
+  });
+  final DateTime date;
+  final IconData icon;
+  final Color color;
+  final Color tint;
+  final String title;
+  final String? meta;
+  final String? note;
+  final List<String> chips;
+  final String? badge;
+}
+
+/// Araç geçmişi zaman çizelgesi: yıllara bölünmüş, en yeni üstte.
+class _Timeline extends StatelessWidget {
+  const _Timeline({required this.service, required this.accidents, required this.report, required this.vehicle});
+  final List<ExpenseRecord> service;
+  final List<Accident> accidents;
+  final VehicleReport report;
+  final Vehicle vehicle;
+
+  @override
+  Widget build(BuildContext context) {
+    final evs = <_Ev>[
+      for (final r in service)
+        _Ev(
+          date: r.date,
+          icon: categoryStyle(r.category).icon,
+          color: categoryStyle(r.category).color,
+          tint: categoryStyle(r.category).tint,
+          title: r.title,
+          meta: [
+            if (r.km != null) '${thousands(r.km!)} km',
+            if (r.serviceName != null && r.serviceName!.trim().isNotEmpty) r.serviceName!.trim(),
+          ].join(' · '),
+          chips: [for (final j in r.jobs) jobLabel(j)],
+          note: r.note,
+        ),
+      for (final a in accidents)
+        _Ev(
+          date: a.date,
+          icon: Icons.car_crash,
+          color: AppColors.lateText,
+          tint: AppColors.lateBg,
+          title: 'Kaza / hasar kaydı',
+          note: a.description,
+          badge: a.damageKurus > 0 ? money(a.damageKurus) : 'Hasarsız',
+        ),
+      _Ev(
+        date: report.trackingSince,
+        icon: Icons.flag_outlined,
+        color: AppColors.navy,
+        tint: AppColors.catMaintTint,
+        title: 'Tekerim\'de takip başladı',
+        meta: report.firstKm == null ? null : '${thousands(report.firstKm!)} km',
+      ),
+    ]..sort((a, b) => b.date.compareTo(a.date));
+
+    final children = <Widget>[];
+    int? year;
+    for (var i = 0; i < evs.length; i++) {
+      final e = evs[i];
+      if (e.date.year != year) {
+        year = e.date.year;
+        children.add(Padding(
+          padding: EdgeInsets.only(top: i == 0 ? 0 : 6, bottom: 8, left: 2),
+          child: Text('$year', style: display(15, weight: FontWeight.w800, color: AppColors.inkSoft)),
+        ));
+      }
+      children.add(_TimelineItem(ev: e, first: i == 0, last: i == evs.length - 1));
+    }
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children);
+  }
+}
+
+class _TimelineItem extends StatelessWidget {
+  const _TimelineItem({required this.ev, required this.first, required this.last});
+  final _Ev ev;
+  final bool first;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    final e = ev;
+    const lineColor = AppColors.border;
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Tarih
+          SizedBox(
+            width: 46,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Column(
+                children: [
+                  Text('${e.date.day}', style: display(17, weight: FontWeight.w800)),
+                  Text(kMonthsShort[e.date.month - 1],
+                      style: body(11, weight: FontWeight.w700, color: AppColors.inkSoft)),
+                ],
+              ),
+            ),
+          ),
+          // Çizgi ve nokta
+          SizedBox(
+            width: 30,
+            child: Column(
+              children: [
+                Container(width: 2, height: 16, color: first ? Colors.transparent : lineColor),
+                Container(
+                  width: 16,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: e.color,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 3),
+                    boxShadow: [BoxShadow(color: e.color.withValues(alpha: 0.35), blurRadius: 4)],
+                  ),
+                ),
+                Expanded(child: Container(width: 2, color: last ? Colors.transparent : lineColor)),
+              ],
+            ),
+          ),
+          // Kart
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: last ? 0 : 10),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        TintIcon(e.icon, e.color, e.tint, size: 28),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(e.title, style: body(14, weight: FontWeight.w700))),
+                        if (e.badge != null)
+                          Text(e.badge!, style: display(13, weight: FontWeight.w800, color: e.color)),
+                      ],
+                    ),
+                    if (e.meta != null && e.meta!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(e.meta!, style: body(12, weight: FontWeight.w600, color: AppColors.inkSoft)),
+                    ],
+                    if (e.chips.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final c in e.chips)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(color: e.tint, borderRadius: BorderRadius.circular(99)),
+                              child: Text(c, style: body(11, weight: FontWeight.w700, color: e.color)),
+                            ),
+                        ],
+                      ),
+                    ],
+                    if (e.note != null && e.note!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(e.note!.trim(), style: body(12, color: AppColors.inkSoft)),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _Stat extends StatelessWidget {
-  const _Stat(this.label, this.value, {this.good = false});
+  const _Stat(this.label, this.value);
   final String label;
   final String value;
-  final bool good;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
-        color: good ? AppColors.okBg : AppColors.card,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -477,94 +649,11 @@ class _Stat extends StatelessWidget {
           Text(label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: body(11, weight: FontWeight.w600, color: good ? AppColors.okText : AppColors.inkSoft)),
+              style: body(11, weight: FontWeight.w600, color: AppColors.inkSoft)),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(value, style: display(17, weight: FontWeight.w800)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ReportRow extends StatelessWidget {
-  const _ReportRow({required this.record, required this.last});
-  final ExpenseRecord record;
-  final bool last;
-
-  @override
-  Widget build(BuildContext context) {
-    final r = record;
-    final meta = [
-      dateShort(r.date),
-      if (r.km != null) '${thousands(r.km!)} km',
-      if (r.jobs.isNotEmpty) r.jobs.map(jobLabel).join(', '),
-    ].join(' · ');
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(
-        border: last ? null : const Border(bottom: BorderSide(color: AppColors.divider)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TintIcon.category(r.category, size: 34),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(r.title, style: body(14, weight: FontWeight.w700)),
-                Text(meta, style: body(12, color: AppColors.inkSoft)),
-                if (r.note != null && r.note!.trim().isNotEmpty)
-                  Text(r.note!.trim(), style: body(12, color: AppColors.inkSoft)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AccidentRow extends StatelessWidget {
-  const _AccidentRow({required this.accident, required this.last});
-  final Accident accident;
-  final bool last;
-
-  @override
-  Widget build(BuildContext context) {
-    final a = accident;
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(
-        border: last ? null : const Border(bottom: BorderSide(color: AppColors.divider)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TintIcon(Icons.car_crash, a.damageKurus > 0 ? AppColors.catFine : AppColors.catOther,
-              a.damageKurus > 0 ? AppColors.catFineTint : AppColors.catOtherTint,
-              size: 34),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(child: Text(dateShort(a.date), style: body(14, weight: FontWeight.w700))),
-                    Text(money(a.damageKurus),
-                        style: display(14,
-                            weight: FontWeight.w700,
-                            color: a.damageKurus > 0 ? AppColors.lateText : AppColors.ink)),
-                  ],
-                ),
-                Text(a.description, style: body(12, color: AppColors.inkSoft)),
-              ],
-            ),
           ),
         ],
       ),
