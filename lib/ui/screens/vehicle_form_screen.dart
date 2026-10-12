@@ -586,13 +586,6 @@ class _PlateInput extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            width: 30,
-            color: AppColors.plateBlue,
-            alignment: Alignment.bottomCenter,
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Text('TR', style: body(11, weight: FontWeight.w700, color: Colors.white)),
-          ),
           Expanded(
             child: Center(
               child: TextField(
@@ -612,6 +605,7 @@ class _PlateInput extends StatelessWidget {
                   focusedBorder: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(horizontal: 14),
                 ),
+                textAlign: TextAlign.center,
               ),
             ),
           ),

@@ -23,6 +23,11 @@ class AppStore extends ChangeNotifier {
   SharedPreferences? _prefs;
   bool loaded = false;
 
+  /// Veriler tamamen sıfırlanınca (hesap silme, çıkış) artar. Uygulama kökü bunu
+  /// dinler ve bütün ekran ağacını baştan kurar; açık ekranlar boş veriyle
+  /// yeniden çizilmeye çalışıp çökmez.
+  final ValueNotifier<int> session = ValueNotifier(0);
+
   final List<Vehicle> _vehicles = [];
   final List<ExpenseRecord> _records = [];
   final List<MaintenanceItem> _items = [];
@@ -514,6 +519,7 @@ class AppStore extends ChangeNotifier {
     settings = AppSettings();
     _cache.clear();
     await _prefs?.remove(_storageKey);
+    session.value++;
     notifyListeners();
     onDataChanged?.call();
   }

@@ -1,6 +1,6 @@
 # Tekerim (eski çalışma adı: Araç Takip) — Proje Bağlamı
 
-Bu dosya, claude.ai'daki planlama sohbetinde verilen tüm kararların özetidir. Her oturumun başında oku ve bu kararlara uy. Bir karar değişirse bu dosyayı da güncelle.
+Bu dosya, claude.ai'daki planlama sohbetinde verilen tüm kararların özetidir. Her oturumun başında oku ve bu kararlara uy. **Bu dosyayı her küçük değişiklikte güncelleme** (kullanıcı token israfı istemiyor); sadece kullanıcı isteyince ya da büyük bir aşama bitince, değişen satırları düzelterek güncelle.
 
 ## Kullanıcı hakkında
 
@@ -175,9 +175,18 @@ Ayrıntılı şema claude.ai'daki "Araç Takip · Veritabanı Şeması" doküman
   - Yaklaşıyor: yazı `#8A5A00`, zemin `#FFF1D6`
   - Gecikti: yazı `#B42318`, zemin `#FBE0E0`
 - Köşe yarıçapları: büyük kartlar 22–28, kartlar 18–20, giriş alanları 14, butonlar 16–18. Dokunma alanları ≥ 44.
-- Türk plakası bileşeni: beyaz zemin, siyah kenarlık, solda mavi (`#1F4FD8`) "TR" şeridi.
+- Plaka bileşeni (`PlateBadge`): beyaz zemin, siyah kenarlık, **TR şeridi yok** (kullanıcı istemedi; araç ekleme plaka girişi dahil hiçbir yerde yok).
+- Araç seçimi her yerde `PlateSelector` (common.dart): TR'siz plaka çipleri, alt alta sarılır (yana kaymaz/taşmaz), seçili = amber çerçeve, seçili değil = soluk. Çoklu seçim (en az biri seçili kalır, varsayılan tüm araçlar): Hatırlatmalar, Harcamalar, Yaklaşan giderler, Usta defterim. Tekli: Kayıt ekle, Geçmiş sekmesi. `effectiveSelection(null=hepsi)`.
 - Kalan süre halkaları (dairesel ilerleme), kategori ikonları renkli kare içinde, emoji yok.
 - Tasarım tuvali claude.ai'da: "Araç Takip Uygulaması Tasarımları" (16 ekran).
+
+## Son oturum (12 Ekim 2026) — nerede kaldık
+
+- Yapılanlar: eşit kart düzeni, MTV kutusu, yakıt tipi 2 sütun, usta puan/not/il (+ Firestore `workshops` kuralı), usta defterinde araç + işlem türü (Bakım/Lastik/Diğer) + "Puan verdiklerim" filtresi, her yerde PlateSelector, TR şeridi kaldırıldı, hesap silme/çıkış kırmızı ekran hatası çözüldü (kullanıcı onayladı).
+- Hesap silme/çıkış tekniği: `AppStore.deleteAllData()` → `store.session` artar → `app.dart` MaterialApp'i `ValueKey(session)` ile baştan kurar. Ayarlarda ekranlar elle kapatılmaz (popUntil kapanan pencereyle çakışıp `_dependents.isEmpty` veriyordu); onay penceresi kapanınca ~400 ms beklenip bekleme penceresi kök Navigator overlay context'inde açılır; `_withProgress` sadece `nav.mounted` ise pop eder.
+- Kullanıcıya hatırlatılacak: `firebase deploy --only firestore --project tekerim-c7442` (workshops kuralı) çalıştırıldı mı belirsiz. Test APK: `flutter build apk --release --split-per-abi` → `build\app\outputs\flutter-apk\app-arm64-v8a-release.apk` (Play'den önce APK ile kuranlar Play sürümüne geçerken silip kurmalı; imza farklı).
+- Sıradaki büyük iş (kullanıcı seçecek): "Raporu paylaş" bağlantısı (shares + app_links + share_plus + hosting) veya e-posta bağlantısıyla giriş. Sonra ortak/herkese açık usta puanları.
+- Çalışma düzeni: kod `/mnt/user-data/outputs/arac/` içinde düzenlenip `device_commit_files` ile `C:\Users\koray.cibik\Desktop\AracTakip\` içine yazılır; ortamda Flutter yok, kullanıcı `flutter analyze / test / run` çalıştırır.
 
 ## Mevcut durum (11 Ekim 2026)
 

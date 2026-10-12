@@ -221,76 +221,34 @@ class SettingsScreen extends StatelessWidget {
     ));
   }
 
+  // Not: Silme ve çıkış sonunda veriler sıfırlanınca uygulama bütün ekranları
+  // kendisi baştan kurar (app.dart, store.session). Bu yüzden burada ekranları
+  // elle kapatmıyoruz; kapanmakta olan pencerenin altındaki ekranı aynı anda
+  // kaldırmak "_dependents.isEmpty" hatasına yol açıyordu.
+
   Future<void> _deleteAll(BuildContext context) async {
     final store = StoreScope.read(context);
-    final ctrl = TextEditingController();
     final ok = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (c) => StatefulBuilder(
-        builder: (c, setS) => Padding(
-          padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.viewInsetsOf(c).bottom + 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: TintIcon(Icons.warning_amber_rounded, AppColors.lateText, AppColors.lateBg, size: 52),
-              ),
-              const SizedBox(height: 12),
-              Text('Hesabın ve tüm verilerin kalıcı olarak silinsin mi?',
-                  style: display(19, weight: FontWeight.w800)),
-              const SizedBox(height: 6),
-              Text(
-                '${store.vehicles.length} araç, ${store.allRecords.length} kayıt, bakım planları ve kaza bilgileri silinir. Bu işlem geri alınamaz.',
-                style: body(14, color: AppColors.catOther),
-              ),
-              const SizedBox(height: 14),
-              const FieldLabel('Onaylamak için SİL yaz'),
-              TextField(
-                controller: ctrl,
-                textCapitalization: TextCapitalization.characters,
-                onChanged: (_) => setS(() {}),
-                style: body(16, weight: FontWeight.w700),
-                decoration: const InputDecoration(hintText: 'SİL'),
-              ),
-              const SizedBox(height: 14),
-              FilledButton(
-                onPressed: _isConfirm(ctrl.text) ? () => Navigator.pop(c, true) : null,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.lateText,
-                  minimumSize: const Size.fromHeight(54),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  textStyle: body(15, weight: FontWeight.w700),
-                ),
-                child: const Text('Kalıcı olarak sil'),
-              ),
-              const SizedBox(height: 8),
-              TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Vazgeç')),
-            ],
-          ),
-        ),
-      ),
+      builder: (_) => _DeleteConfirmSheet(vehicles: store.vehicles.length, records: store.allRecords.length),
     );
-    ctrl.dispose();
     if (ok != true || !context.mounted) return;
+    final host = await _afterSheetClosed(context);
     await NotificationService.instance.cancelAll();
-    if (!context.mounted) return;
+    if (!host.mounted) return;
     try {
       if (kCloudEnabled) {
-        await runWithProgress(context, 'Hesabın ve verilerin siliniyor…', CloudService.instance.deleteAccount);
+        await runWithProgress(host, 'Hesabın ve verilerin siliniyor…', CloudService.instance.deleteAccount);
       } else {
         await store.deleteAllData();
       }
     } catch (e) {
       debugPrint('Hesap silinemedi: $e');
-      if (context.mounted) {
-        toast(context, 'Silme tamamlanamadı (${cloudErrorCode(e)}). İnternet bağlantını kontrol edip tekrar dene.');
+      if (host.mounted) {
+        toast(host, 'Silme tamamlanamadı (${cloudErrorCode(e)}). İnternet bağlantını kontrol edip tekrar dene.');
       }
-      return;
     }
-    if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
   Future<void> _signOut(BuildContext context) async {
@@ -302,21 +260,26 @@ class SettingsScreen extends StatelessWidget {
       danger: false,
     );
     if (!ok || !context.mounted) return;
+    final host = await _afterSheetClosed(context);
     await NotificationService.instance.cancelAll();
-    if (!context.mounted) return;
+    if (!host.mounted) return;
     try {
-      await runWithProgress(context, 'Çıkış yapılıyor…', CloudService.instance.signOut);
+      await runWithProgress(host, 'Çıkış yapılıyor…', CloudService.instance.signOut);
     } catch (e) {
       debugPrint('Çıkış yapılamadı: $e');
-      if (context.mounted) toast(context, 'Çıkış yapılamadı (${cloudErrorCode(e)}).');
+      if (host.mounted) toast(host, 'Çıkış yapılamadı (${cloudErrorCode(e)}).');
     }
-    if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
-  static bool _isConfirm(String t) {
-    final s = t.trim().toUpperCase().replaceAll('İ', 'I');
-    return s == 'SIL';
+  /// Onay penceresinin kapanma animasyonunun bitmesini bekler; bekleme penceresini
+  /// açmak için kök Navigator'ın katmanına ait, işlem boyunca ayakta kalan bir
+  /// context döndürür.
+  static Future<BuildContext> _afterSheetClosed(BuildContext context) async {
+    final host = Navigator.of(context, rootNavigator: true).overlay!.context;
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    return host;
   }
+
 }
 
 class _GroupTitle extends StatelessWidget {
@@ -457,6 +420,80 @@ class _AccountCard extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// "SİL" yazdırılan onay penceresi. Metin kutusunun denetleyicisi pencere
+/// tamamen kapanınca (dispose) bırakılır; erken bırakmak hata veriyordu.
+class _DeleteConfirmSheet extends StatefulWidget {
+  const _DeleteConfirmSheet({required this.vehicles, required this.records});
+  final int vehicles;
+  final int records;
+
+  @override
+  State<_DeleteConfirmSheet> createState() => _DeleteConfirmSheetState();
+}
+
+class _DeleteConfirmSheetState extends State<_DeleteConfirmSheet> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  bool get _ok {
+    final s = _ctrl.text.trim().toUpperCase().replaceAll('İ', 'I');
+    return s == 'SIL';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.viewInsetsOf(context).bottom + 24),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: TintIcon(Icons.warning_amber_rounded, AppColors.lateText, AppColors.lateBg, size: 52),
+            ),
+            const SizedBox(height: 12),
+            Text('Hesabın ve tüm verilerin kalıcı olarak silinsin mi?', style: display(19, weight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            Text(
+              '${widget.vehicles} araç, ${widget.records} kayıt, bakım planları, usta puanların ve kaza bilgileri silinir. Bu işlem geri alınamaz.',
+              style: body(14, color: AppColors.catOther),
+            ),
+            const SizedBox(height: 14),
+            const FieldLabel('Onaylamak için SİL yaz'),
+            TextField(
+              controller: _ctrl,
+              textCapitalization: TextCapitalization.characters,
+              onChanged: (_) => setState(() {}),
+              style: body(16, weight: FontWeight.w700),
+              decoration: const InputDecoration(hintText: 'SİL'),
+            ),
+            const SizedBox(height: 14),
+            FilledButton(
+              onPressed: _ok ? () => Navigator.pop(context, true) : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.lateText,
+                minimumSize: const Size.fromHeight(54),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                textStyle: body(15, weight: FontWeight.w700),
+              ),
+              child: const Text('Kalıcı olarak sil'),
+            ),
+            const SizedBox(height: 8),
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Vazgeç')),
+          ],
+        ),
+      ),
     );
   }
 }

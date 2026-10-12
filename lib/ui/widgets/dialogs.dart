@@ -187,7 +187,8 @@ Future<void> _withProgress(BuildContext context, String text, Future<void> Funct
   try {
     await job();
   } finally {
-    nav.pop();
+    // İşlem sırasında ekranlar sıfırlandıysa (hesap silme) pencere zaten kalktı.
+    if (nav.mounted) nav.pop();
   }
 }
 

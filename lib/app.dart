@@ -14,7 +14,11 @@ class AracTakipApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return StoreScope(
       store: store,
-      child: MaterialApp(
+      // Hesap silinince / çıkış yapılınca bütün ekranlar sıfırdan kurulur.
+      child: ValueListenableBuilder<int>(
+        valueListenable: store.session,
+        builder: (context, session, _) => MaterialApp(
+        key: ValueKey(session),
         title: 'Tekerim',
         debugShowCheckedModeBanner: false,
         theme: buildTheme(),
@@ -36,6 +40,7 @@ class AracTakipApp extends StatelessWidget {
           );
         },
         home: const _Root(),
+      ),
       ),
     );
   }

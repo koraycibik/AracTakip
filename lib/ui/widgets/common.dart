@@ -16,11 +16,11 @@ import '../../logic/maintenance.dart';
 // ---------------------------------------------------------------------------
 
 class PlateBadge extends StatelessWidget {
-  const PlateBadge(this.plate, {super.key, this.size = 15, this.showTr = true});
+  const PlateBadge(this.plate, {super.key, this.size = 15, this.showTr = false});
   final String plate;
   final double size;
 
-  /// Soldaki mavi "TR" şeridi (araç kartında ve araç seçimlerinde yok).
+  /// Soldaki mavi "TR" şeridi. Uygulamada hiçbir yerde gösterilmiyor (varsayılan kapalı).
   final bool showTr;
 
   @override
