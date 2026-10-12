@@ -40,7 +40,8 @@ class _TrueCostScreenState extends State<TrueCostScreen> {
     final maxPk = compare.isEmpty ? 1.0 : compare.first.$2;
     final top = MediaQuery.paddingOf(context).top;
 
-    return Scaffold(
+    return LightStatusBar(
+      child: Scaffold(
       body: ListView(
         padding: EdgeInsets.only(bottom: bottomSpace(context)),
         children: [
@@ -289,6 +290,7 @@ class _TrueCostScreenState extends State<TrueCostScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 }

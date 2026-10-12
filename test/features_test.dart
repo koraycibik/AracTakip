@@ -244,4 +244,31 @@ void main() {
     expect(v.brand, 'Fiat');
     expect(buyer.historyRecords.single.vehicleId, 'b1');
   });
+
+  test('aynı plakalı iki araç birleşir, kayıtlar eskisine taşınır', () {
+    final store = AppStore();
+    store.replaceAll({
+      'vehicles': [
+        {'id': 'old', 'plate': '55 EB 219', 'type': 'car', 'brand': 'Opel', 'model': 'Astra', 'fuelType': 'gasoline_lpg',
+         'currentKm': 167522, 'createdAt': DateTime(2026, 9, 1).toIso8601String()},
+        {'id': 'new', 'plate': '55EB219', 'type': 'car', 'brand': 'Opel', 'model': 'Astra', 'fuelType': 'gasoline',
+         'currentKm': 167000, 'createdAt': DateTime(2026, 10, 12).toIso8601String(),
+         'inspectionDueDate': DateTime(2027, 5, 1).toIso8601String()},
+      ],
+      'records': [
+        {'id': 'r1', 'vehicleId': 'new', 'category': 'fuel', 'date': DateTime.now().toIso8601String(), 'amountKurus': 260000},
+      ],
+      'maintenanceItems': [
+        {'id': 'i1', 'vehicleId': 'old', 'presetKey': 'periodic', 'name': 'Periyodik bakım'},
+        {'id': 'i2', 'vehicleId': 'new', 'presetKey': 'periodic', 'name': 'Periyodik bakım'},
+      ],
+    });
+    expect(store.vehicles.length, 1);
+    final v = store.vehicles.single;
+    expect(v.id, 'old');
+    expect(v.currentKm, 167522);
+    expect(v.inspectionDueDate, DateTime(2027, 5, 1));
+    expect(store.allRecords.single.vehicleId, 'old');
+    expect(store.itemsFor('old').length, 1);
+  });
 }

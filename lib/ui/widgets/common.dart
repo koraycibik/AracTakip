@@ -203,6 +203,30 @@ class FieldNote extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
+// Durum çubuğu: lacivert başlıklı ekranlarda saat/pil simgeleri beyaz olur.
+// ---------------------------------------------------------------------------
+
+class LightStatusBar extends StatelessWidget {
+  const LightStatusBar({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarContrastEnforced: false,
+      ),
+      child: child,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Kalan süre halkası
 // ---------------------------------------------------------------------------
 

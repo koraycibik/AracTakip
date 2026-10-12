@@ -206,7 +206,8 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
+    return LightStatusBar(
+      child: PopScope(
       canPop: _step == 0,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && _step == 1) setState(() => _step = 0);
@@ -255,6 +256,7 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 

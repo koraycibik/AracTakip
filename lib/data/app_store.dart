@@ -53,7 +53,7 @@ class AppStore extends ChangeNotifier {
     if (raw != null && raw.isNotEmpty) {
       try {
         final j = jsonDecode(raw) as Map<String, dynamic>;
-        final migrated = _migrateLegacyLpg(j);
+        final migrated = _migrateLegacyLpg(j) | _dedupePlates(j);
         List<Map<String, dynamic>> list(String k) => ((j[k] as List?) ?? [])
             .map((e) => Map<String, dynamic>.from(e as Map))
             .toList();
@@ -89,6 +89,71 @@ class AppStore extends ChangeNotifier {
 
   /// Eski "LPG" yakıt tipindeki araçları "Benzin + LPG"ye çevirir; o araçların türü
   /// belirtilmemiş yakıt kayıtlarını LPG sayar. Değişiklik olduysa true döner.
+  /// Aynı plakalı iki araç olmasın (ör. telefonda yeniden eklenen araç, Google ile
+  /// girişte buluttaki aynı araçla birleşince). En eski kayıt kalır; diğerinin
+  /// kayıtları, kazaları ve bakım planı ona taşınır, eksik bilgileri tamamlanır.
+  static bool _dedupePlates(Map<String, dynamic> j) {
+    final vehicles = (j['vehicles'] as List? ?? const []).whereType<Map>().toList();
+    DateTime created(Map v) => DateTime.tryParse(v['createdAt'] as String? ?? '') ?? DateTime(2100);
+    final active = vehicles.where((v) => v['archived'] != true).toList()
+      ..sort((a, b) => created(a).compareTo(created(b)));
+    final keep = <String, Map>{};
+    final remap = <String, String>{};
+    for (final v in active) {
+      final k = plateKey(v['plate'] as String? ?? '');
+      if (k.isEmpty) continue;
+      final kept = keep[k];
+      if (kept == null) {
+        keep[k] = v;
+        continue;
+      }
+      remap[v['id'] as String] = kept['id'] as String;
+      int km(Map m) => (m['currentKm'] as num?)?.toInt() ?? 0;
+      if (km(v) > km(kept)) {
+        kept['currentKm'] = v['currentKm'];
+        kept['kmUpdatedAt'] = v['kmUpdatedAt'];
+      }
+      for (final f in ['inspectionDueDate', 'trafficInsuranceEndDate', 'cascoEndDate', 'year']) {
+        if (kept[f] == null && v[f] != null) kept[f] = v[f];
+      }
+      for (final f in ['brand', 'model']) {
+        if ((kept[f] as String? ?? '').trim().isEmpty) kept[f] = v[f];
+      }
+      kept['kmLog'] = [...(kept['kmLog'] as List? ?? const []), ...(v['kmLog'] as List? ?? const [])];
+    }
+    if (remap.isEmpty) return false;
+    (j['vehicles'] as List).removeWhere((v) => v is Map && remap.containsKey(v['id']));
+    for (final key in ['records', 'accidents', 'reminderDecisions', 'maintenanceItems']) {
+      for (final x in (j[key] as List? ?? const [])) {
+        if (x is Map && remap.containsKey(x['vehicleId'])) x['vehicleId'] = remap[x['vehicleId']];
+      }
+    }
+    // Birleşen araçta aynı bakım kalemi iki kez olmasın: "son yapıldı" tarihi yeni olan kalır.
+    final keptIds = remap.values.toSet();
+    final items = j['maintenanceItems'] as List? ?? const [];
+    final seen = <String, Map>{};
+    final drop = <Map>{};
+    for (final it in items.whereType<Map>()) {
+      if (!keptIds.contains(it['vehicleId'])) continue;
+      final k = '${it['vehicleId']}|${it['presetKey'] ?? (it['name'] as String? ?? '').trim().toLowerCase()}';
+      final prev = seen[k];
+      if (prev == null) {
+        seen[k] = it;
+        continue;
+      }
+      final a = DateTime.tryParse(prev['lastDoneDate'] as String? ?? '');
+      final b = DateTime.tryParse(it['lastDoneDate'] as String? ?? '');
+      if (b != null && (a == null || b.isAfter(a))) {
+        drop.add(prev);
+        seen[k] = it;
+      } else {
+        drop.add(it);
+      }
+    }
+    items.removeWhere(drop.contains);
+    return true;
+  }
+
   static bool _migrateLegacyLpg(Map<String, dynamic> j) {
     // Plakaları tek tip yaz ("34abc123", "34 ABC  123" → "34 ABC 123").
     var changed = false;
@@ -121,6 +186,7 @@ class AppStore extends ChangeNotifier {
   /// Bellekteki tüm veriyi [j] ile değiştirir (buluttan gelen veri için).
   void replaceAll(Map<String, dynamic> j) {
     _migrateLegacyLpg(j);
+    _dedupePlates(j);
     List<Map<String, dynamic>> list(String k) => ((j[k] as List?) ?? [])
         .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();

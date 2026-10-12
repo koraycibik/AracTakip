@@ -11,10 +11,17 @@ import 'services/transfer_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Uygulama ekranın en üstüne kadar uzanır; durum çubuğu (saat, pil) ve alttaki
+  // gezinme çubuğu şeffaf olur, arkada uygulamanın kendi rengi görünür.
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
     statusBarBrightness: Brightness.light,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarIconBrightness: Brightness.dark,
+    systemNavigationBarContrastEnforced: false,
+    systemStatusBarContrastEnforced: false,
   ));
 
   final store = AppStore();

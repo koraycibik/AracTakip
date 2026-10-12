@@ -43,7 +43,8 @@ class ReportScreen extends StatelessWidget {
     final rep = computeReport(vehicle: v, records: store.historyRecords, plan: store.maintenanceFor(v));
     final top = MediaQuery.paddingOf(context).top;
 
-    return Scaffold(
+    return LightStatusBar(
+      child: Scaffold(
       // Bağlantıyla paylaşma açılınca alttaki sabit buton görünür.
       bottomNavigationBar: !(preview && kShareEnabled)
           ? null
@@ -234,6 +235,7 @@ class ReportScreen extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }

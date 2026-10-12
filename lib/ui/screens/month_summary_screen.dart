@@ -53,7 +53,8 @@ class _MonthSummaryScreenState extends State<MonthSummaryScreen> {
     final top = MediaQuery.paddingOf(context).top;
     final isCurrent = _month == thisMonth;
 
-    return Scaffold(
+    return LightStatusBar(
+      child: Scaffold(
       body: ListView(
         padding: EdgeInsets.only(bottom: bottomSpace(context)),
         children: [
@@ -232,6 +233,7 @@ class _MonthSummaryScreenState extends State<MonthSummaryScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 }

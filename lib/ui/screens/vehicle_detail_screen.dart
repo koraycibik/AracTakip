@@ -30,7 +30,9 @@ class VehicleDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(body: VehicleDetailView(vehicleId: vehicleId));
+    return LightStatusBar(
+      child: Scaffold(body: VehicleDetailView(vehicleId: vehicleId)),
+    );
   }
 }
 
