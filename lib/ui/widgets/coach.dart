@@ -88,6 +88,8 @@ void scheduleTip(
     if (!state.mounted) return;
     final route = ModalRoute.of(state.context);
     if (route != null && !route.isCurrent) return;
+    // Arka plandaki (görünmeyen) alt menü sekmesindeyse gösterme.
+    if (!TickerMode.of(state.context)) return;
     await showTipOnce(state.context, key: key, target: target, title: title, text: text);
   });
 }
@@ -116,10 +118,12 @@ class TipAnchor extends StatefulWidget {
 class _TipAnchorState extends State<TipAnchor> {
   final _target = GlobalKey();
 
+  /// Sekme görünür olunca (TickerMode açılınca) ipucu denenir; alt menüde
+  /// arkada duran sekmeler ekranda değilken ipucu göstermez.
   @override
-  void initState() {
-    super.initState();
-    if (widget.enabled) {
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (widget.enabled && TickerMode.of(context)) {
       scheduleTip(this, key: widget.tipKey, target: _target, title: widget.title, text: widget.text);
     }
   }

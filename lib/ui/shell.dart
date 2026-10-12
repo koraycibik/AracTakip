@@ -114,7 +114,13 @@ class _ShellState extends State<Shell> {
       const StatsScreen(),
       const HistoryTab(),
     ];
-    final content = IndexedStack(index: _tab, children: pages);
+    // Görünmeyen sekmeler "duraklatılır": animasyonları ve tanıtım ipuçları çalışmaz.
+    final content = IndexedStack(
+      index: _tab,
+      children: [
+        for (var i = 0; i < pages.length; i++) TickerMode(enabled: i == _tab, child: pages[i]),
+      ],
+    );
 
     if (size == LayoutSize.compact) {
       final mq = MediaQuery.of(context);
