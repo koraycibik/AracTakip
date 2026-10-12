@@ -7,7 +7,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:arac_takip/data/models.dart';
 import 'package:arac_takip/data/vehicle_catalog.dart';
+import 'package:arac_takip/data/app_store.dart';
 import 'package:arac_takip/logic/month_summary.dart';
+import 'package:arac_takip/logic/stats.dart';
 import 'package:arac_takip/logic/true_cost.dart';
 import 'package:arac_takip/logic/workshops.dart';
 
@@ -95,5 +97,48 @@ void main() {
     expect(s.count, 2);
     expect(s.deltaPercent, 100);
     expect(s.highlights.first.title.startsWith('En büyük kalem'), true);
+  });
+
+  test('LPG ayrı gösterimde yakıt Benzin ve LPG olarak bölünür', () {
+    final v = _car()..fuelType = FuelType.gasolineLpg;
+    final d = DateTime.now();
+    final recs = [
+      _rec('v1', RecordCategory.fuel, d, 70000)..fuelKind = 'lpg',
+      _rec('v1', RecordCategory.fuel, d, 30000)..fuelKind = 'gasoline',
+    ];
+    final split = computeStats(vehicles: [v], records: recs, period: StatsPeriod.week, splitLpg: true);
+    final lpg = split.groups.firstWhere((g) => g.label == 'LPG');
+    final benzin = split.groups.firstWhere((g) => g.label == 'Benzin');
+    expect(lpg.amountKurus, 70000);
+    expect(benzin.amountKurus, 30000);
+    final together = computeStats(vehicles: [v], records: recs, period: StatsPeriod.week);
+    expect(together.groups.firstWhere((g) => g.label == 'Yakıt ve şarj').amountKurus, 100000);
+  });
+
+  test('eski LPG araçlar Benzin + LPG olur, türü boş yakıt kayıtları LPG sayılır', () {
+    final store = AppStore();
+    store.replaceAll({
+      'vehicles': [
+        {'id': 'v9', 'plate': '06 AB 1', 'type': 'car', 'brand': 'Fiat', 'model': 'Egea', 'fuelType': 'lpg', 'currentKm': 1000}
+      ],
+      'records': [
+        {'id': 'r1', 'vehicleId': 'v9', 'category': 'fuel', 'date': DateTime.now().toIso8601String(), 'amountKurus': 5000}
+      ],
+    });
+    expect(store.vehicles.single.fuelType, FuelType.gasolineLpg);
+    expect(store.allRecords.single.isLpg, true);
+  });
+
+  test('usta puanı ve notu kaydedilir, boşalınca silinir', () {
+    final store = AppStore();
+    final key = normalizeTr('Özgür Oto');
+    store.saveReview(WorkshopReview(key: key, name: 'Özgür Oto', rating: 4, note: 'Temiz iş', city: 'Bursa', updatedAt: DateTime.now()));
+    final copy = AppStore()..replaceAll(store.exportData());
+    final r = copy.reviewFor(key)!;
+    expect(r.rating, 4);
+    expect(r.note, 'Temiz iş');
+    expect(r.city, 'Bursa');
+    store.saveReview(WorkshopReview(key: key, name: 'Özgür Oto', updatedAt: DateTime.now()));
+    expect(store.reviewFor(key), null);
   });
 }

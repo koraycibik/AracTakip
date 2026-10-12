@@ -38,6 +38,7 @@ Kişinin araç(lar)ını takip ettiği mobil uygulama: muayene, trafik sigortas�
 - Uygulamalar: Android `com.koraycibik.arac_takip`, iOS `com.koraycibik.aracTakip` (+ yanlışlıkla eklenen web/windows kayıtları, zararsız).
 - `lib/firebase_options.dart`, `android/app/google-services.json` (SHA'lar eklendikten sonra konsoldan indirildi), Gradle'da `com.google.gms.google-services` 4.5.0.
 - Android SHA parmak izleri Firebase'e eklendi: deneme anahtarı SHA1 `0A:7C:CF:81:…:73:8D`, mağaza (upload) anahtarı SHA1 `9B:42:A1:05:…:9F:20` (+ SHA-256'ları). **Play hesabı açılınca Play App Signing anahtarının SHA1/SHA-256'sı da eklenmeli** (Play Console > Uygulama bütünlüğü), yoksa Play'den kurulan sürümde Google girişi çalışmaz; sonra google-services.json yeniden indirilmeli.
+- Kod GitHub'da: `koraycibik/AracTakip`. GitHub "secret" uyarısı Firebase istemci API anahtarları içindi (`google-services.json`, `firebase_options.dart`): Firebase'e göre gizli değil, koruma güvenlik kurallarında; döndürmeye gerek yok. `key.properties` ve `.jks` hiç yüklenmedi (android/.gitignore). Öneri: depoyu gizli (private) yapmak; App Check ve Android anahtar kısıtlaması Play App Signing SHA'sı eklendikten sonra.
 - Güvenlik kuralları yüklendi (`firebase deploy --only firestore --project tekerim-c7442`); kural değişince aynı komut tekrar çalıştırılmalı. Senkron telefonda denendi: `users/{uid}` ve alt koleksiyonlar oluşuyor (12 Ekim 2026).
 
 ## Bulut senkronu (`lib/services/cloud_service.dart`)
@@ -77,11 +78,11 @@ Kişinin araç(lar)ını takip ettiği mobil uygulama: muayene, trafik sigortas�
 
 0. **Karşılama:** tanıtım, "Hemen başla", "Hesabım var, giriş yap", KVKK/gizlilik bağlantıları.
 1. **Garajım:** "Verilerini güvenceye al" kartı (hesap bağlı değilse), her araç büyük kart (lacivert, Türk plakası, 3 halka: Bakım / Trafik sigortası / Muayene; halkada sayı + altında birim "gün / ay / yıl", kısaltma yok; kartın altında "Ekim ayı gideri ₺…" satırı), "Yeni araç ekle", altında "Önümüzdeki 90 gün beklenen gider" şeridi, sonra Yaklaşanlar. Sağ üstte ayarlar ve bildirim (rozetli) butonları.
-2a. **Araç ekle, adım 1:** plaka (TR plakası görünümlü giriş), araç türü (7 seçenek), marka ve model (araç tipine göre listeden aranarak seçilir, listede yoksa "… olarak kullan" ile serbest yazılır; kasa tipi/SUV yok), yıl, güncel km, yakıt tipi (Benzin, Dizel, LPG, Benzin+LPG, Hibrit, Elektrik; şarj edilebilir hibrit eklenmesi tartışmada).
+2a. **Araç ekle, adım 1:** plaka (TR plakası görünümlü giriş), araç türü (7 seçenek), marka ve model (araç tipine göre listeden aranarak seçilir, listede yoksa "… olarak kullan" ile serbest yazılır; kasa tipi/SUV yok), yıl, güncel km, yakıt tipi (Benzin, Dizel, Benzin + LPG, Hibrit, Şarjlı hibrit, Elektrik). Ayrı "LPG" seçeneği "Benzin + LPG" ile birleştirildi; eski 'lpg' kayıtlı araçlar açılışta otomatik çevrilir, türü boş yakıt kayıtları LPG sayılır.
 2b. **Araç ekle, adım 2:** sonraki muayene, trafik sigortası bitişi, kasko bitişi (isteğe bağlı), son bakım km'si, mevsimlik lastik hatırlatması (Kasım/Nisan). MTV (Ocak/Temmuz) otomatik. Kaydedince garaja döner, reklam yok.
 3. **Araç detayı:** km (güncelle butonu), bu ay harcama, yakıt/şarj ₺/100 km, durum kutuları (kasko, trafik sig., muayene, kış lastiği, MTV, yaklaşan bakım kalemi), altta 3 kart: Bakım planı, Servis geçmişi, Kaza/hasar.
 4. **Kayıt ekle** (kaydırılan form): üstte araç seçimi; kategoriler: Yakıt (elektrikli araçta **Şarj**), Bakım, Lastik, Sigorta, Muayene, Vergi, Ceza, Diğer. Büyük TL tutar alanı, tarih, km.
-   - Yakıt: **sadece TL tutar** (litre yok). Benzin+LPG araçta Benzin/LPG seçimi.
+   - Yakıt: **sadece TL tutar** (litre yok). Benzin + LPG araçta önce **Benzin | LPG** seçilir (varsayılan: o araçta son girilen tür), sonra tutar (`fuelKind`: gasoline|lpg). Harcamalar ve Gerçek maliyet ekranlarında "Toplu | LPG ayrı" düğmesi (`settings.splitLpg`, varsayılan ayrı; sadece LPG'li araç varken görünür). Araç detayında Yakıt/100 km altında "LPG %70 · Benzin %30" (son 90 gün). Ay özeti en büyük kalemi LPG/benzin diye adlandırır.
    - Şarj: TL + isteğe bağlı kWh + şarj yeri (Ev / AC / DC).
    - Bakım: "Yapılan işlemler" çoklu seçim (motor yağı, yağ filtresi, hava filtresi, polen filtresi, yakıt filtresi, buji, triger seti, fren balatası, antifriz; elektrikli araçta: genel kontrol, polen filtresi, fren balatası, fren hidroliği, klima bakımı) + servis/usta + ek açıklama. İşaretlenen işlemler bakım planındaki ilgili sayaçları sıfırlar.
    - Lastik: yapılan işlem + servis/usta + açıklama.
@@ -99,7 +100,7 @@ Kişinin araç(lar)ını takip ettiği mobil uygulama: muayene, trafik sigortas�
 14. **Bildirimler:** km'yi bildirimden güncelleme, bakım yaklaşıyor, gecikti, poliçe bitiyor, ay sonu özeti.
 15. **Yaklaşan gider tahmini:** garajda "Önümüzdeki 90 gün beklenen gider" şeridi → ekran: araç sekmeleri, aylık çubuklar, tarihi belli kalemler (poliçe, muayene, MTV, mevsimlik lastik, bakım, ceza; tutar = aynı türdeki son kayıt, yoksa "Bilinmiyor"), yakıt/şarj ortalaması (son 90 gün).
 16. **Gerçek maliyet:** araç detayındaki "Gerçek maliyet ›" kutusu → günlük / km başı / aylık / toplam; Son 12 ay · Eklediğimden beri; km başına kategori dağılımı; araç karşılaştırması. Kaza tutarları dahil değil.
-17. **Usta defterim:** servis geçmişinde bağlantı kartı → kayıtlardaki serviceName'den otomatik (Türkçe karakter/büyük-küçük farkı aynı usta), ziyaret, toplam, son ziyaret, işlemler, geçmiş; sıralama Harcama / Son ziyaret. Kayıt ekranında servis adı önerileri.
+17. **Usta defterim:** servis geçmişinde bağlantı kartı → kayıtlardaki serviceName'den otomatik (Türkçe karakter/büyük-küçük farkı aynı usta), ziyaret, toplam, son ziyaret, işlemler, geçmiş; sıralama Harcama / Son / Puan. Kayıt ekranında servis adı önerileri. Her ustaya **1–5 yıldız puan, kişisel not (≤500) ve il (81 il listesi)**; açılan kartta yıldıza dokununca hemen kaydedilir, "Not ve il ekle" penceresi. Amaç ileride firmalar hakkında ortak puan toplamak (şimdilik sadece kullanıcının kendi dalında; ortak/herkese açık puan sonraki adım, Cloud Functions olmadan ayrı koleksiyon + kurallarla).
 18. **Ay sonu özeti:** her ayın 1'inde bildirim ("Eylül özetin hazır") → ekran: toplam, önceki aya göre %, yol, kayıt, ₺/100 km, öne çıkanlar, araç bazında; önceki/sonraki ay. İstatistik ekranında da kartı var.
 
 ## Bakım ve hatırlatma mantığı
@@ -123,11 +124,12 @@ Kişinin araç(lar)ını takip ettiği mobil uygulama: muayene, trafik sigortas�
 Ayrıntılı şema claude.ai'daki "Araç Takip · Veritabanı Şeması" dokümanında. Özet:
 
 - Para **kuruş cinsinden tam sayı** (`amountKurus`), km tam sayı, tarihler `Timestamp`. Sabit seçenekler İngilizce anahtar, ekranda Türkçe.
-- `users/{uid}`: email?, authProviders, settings {notificationsEnabled, notifyTime "09:00", leadDays [30,7,1], kmPromptDays 14}
-- `users/{uid}/vehicles/{vehicleId}`: ownerUid, plate, plateNormalized, type (car|motorcycle|atv|van|truck|minibus|bus), brand, model, year, fuelType (gasoline|diesel|lpg|gasoline_lpg|hybrid|plugin_hybrid|electric), currentKm, kmUpdatedAt, avgKmPerDay, inspectionDueDate?, trafficInsuranceEndDate?, cascoEndDate?, seasonalTireReminder, mtvReminder, sortOrder, archived
+- `users/{uid}`: email?, authProviders, settings {notificationsEnabled, notifyTime "09:00", leadDays [30,7,1], kmPromptDays 14, splitLpg}
+- `users/{uid}/vehicles/{vehicleId}`: ownerUid, plate, plateNormalized, type (car|motorcycle|atv|van|truck|minibus|bus), brand, model, year, fuelType (gasoline|diesel|gasoline_lpg|hybrid|plugin_hybrid|electric; eski 'lpg' okunurken gasoline_lpg sayılır), currentKm, kmUpdatedAt, avgKmPerDay, inspectionDueDate?, trafficInsuranceEndDate?, cascoEndDate?, seasonalTireReminder, mtvReminder, sortOrder, archived
 - `…/vehicles/{vehicleId}/records/{recordId}`: ownerUid, vehicleId, category (fuel|charge|maintenance|tire|insurance|inspection|tax|fine|other), date, km?, amountKurus, fuelKind?, energyKwh?, chargeLocation? (home|ac|dc), jobs?[], serviceName? (≤80), note? (≤1000), dueDate?, insuranceKind? (traffic|casco; sigorta kaydında)
 - `…/vehicles/{vehicleId}/maintenanceItems/{itemId}`: presetKey?, name, intervalKm?, intervalMonths?, lastDoneKm?, lastDoneDate?, resetJobs[], notify, sortOrder
 - `…/vehicles/{vehicleId}/accidents/{accidentId}`: date, damageKurus, description (≤2000)
+- `users/{uid}/workshops/w{normalizeTr(ad)}`: key, name (≤80), rating (0–5, 0 = yok), note (≤500), city? (≤40), updatedAt, ownerUid. Telefonda `workshopReviews` listesi.
 - `users/{uid}/reminders/{reminderId}`: vehicleId, sourceType, sourceId?, dueDate, status (done|dismissed|snoozed), snoozedUntil?
 - `catalog/{car|motorcycle|atv|van|truck|minibus|bus}` (kök, herkese açık okunur, sadece konsoldan yazılır): { brands: [ {brand, models: [...]} ] }. Kaynak dosya `assets/data/vehicle_catalog.json` (Türkiye pazarı, ODMD 2025 marka listesi + eski/ikinci el markalar; 188 marka, ~1.290 model). Firebase'e geçince her tip bir belge olarak yüklenir, `VehicleCatalog.load()` önce Firestore'u, olmazsa gömülü dosyayı okur.
 - `shares/{shareId}` (kök, herkese açık okunur): ownerUid, vehicleId, code ("AT-7K2Q"), createdAt, expiresAt (+30 gün), revoked, snapshot
@@ -146,6 +148,8 @@ Ayrıntılı şema claude.ai'daki "Araç Takip · Veritabanı Şeması" doküman
 - Katlama/açmada form durumu kaybolmaz (form durumu StatefulWidget'larda, veri AppStore'da).
 - Büyük yazı ayarıyla (1,3×'e kadar) taşma olmamalı.
 - Test: gerçek telefon + Android Studio emülatöründe Fold ve resizable profiller.
+
+- **Eşit kart kuralı:** ızgaradaki kutular (araç detayı durum kutuları, başlık istatistikleri, seçim kutuları) her zaman aynı yükseklikte; alt satır ve çubuk boş olsa da yer kaplar, uzun yazı "…" ile kesilmez, FittedBox ile küçülür. Araç detayında MTV kutusu başlığı "MTV 1/2", tarih alt satırda. Araç eklemede yakıt tipi telefonda 2 sütun.
 
 ## Tasarım dili
 

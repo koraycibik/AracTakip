@@ -28,13 +28,18 @@ class StatsBar {
 }
 
 class CategoryGroup {
-  CategoryGroup(this.label, this.icon, this.color, this.tint, this.categories);
+  CategoryGroup(this.label, this.icon, this.color, this.tint, this.categories, {this.match});
   final String label;
   final IconData icon;
   final Color color;
   final Color tint;
   final Set<RecordCategory> categories;
+
+  /// Kategori yerine kayda göre eşleşme (ör. sadece LPG alımları).
+  final bool Function(ExpenseRecord r)? match;
   int amountKurus = 0;
+
+  bool accepts(ExpenseRecord r) => match != null ? match!(r) : categories.contains(r.category);
 }
 
 class StatsResult {
@@ -63,6 +68,7 @@ StatsResult computeStats({
   required List<ExpenseRecord> records,
   required StatsPeriod period,
   DateTimeRange? customRange,
+  bool splitLpg = false,
 }) {
   final now = DateTime.now();
   final t = today();
@@ -142,9 +148,16 @@ StatsResult computeStats({
       break;
   }
 
+  // LPG ayrı gösterilecekse: önce LPG alımları, kalan yakıt (benzin/dizel) ve şarj ayrı satır.
+  final onlyLpgVehicles = vehicles.isNotEmpty && vehicles.every((v) => v.fuelType.hasLpg);
+  final split = splitLpg && vehicles.any((v) => v.fuelType.hasLpg);
   final groups = [
-    CategoryGroup('Yakıt ve şarj', Icons.local_gas_station, AppColors.catFuel,
-        AppColors.catFuelTint, {RecordCategory.fuel, RecordCategory.charge}),
+    if (split)
+      CategoryGroup('LPG', Icons.local_gas_station, AppColors.catLpg, AppColors.catLpgTint,
+          {RecordCategory.fuel}, match: (r) => r.isLpg),
+    CategoryGroup(split ? (onlyLpgVehicles ? 'Benzin' : 'Benzin, dizel ve şarj') : 'Yakıt ve şarj',
+        Icons.local_gas_station, AppColors.catFuel, AppColors.catFuelTint,
+        {RecordCategory.fuel, RecordCategory.charge}),
     CategoryGroup('Bakım ve lastik', Icons.build, AppColors.catMaint,
         AppColors.catMaintTint, {RecordCategory.maintenance, RecordCategory.tire}),
     CategoryGroup('Sigorta ve muayene', Icons.verified_user, AppColors.catIns,
@@ -170,7 +183,7 @@ StatsResult computeStats({
       }
     }
     for (final g in groups) {
-      if (g.categories.contains(r.category)) {
+      if (g.accepts(r)) {
         g.amountKurus += r.amountKurus;
         break;
       }

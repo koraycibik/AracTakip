@@ -280,7 +280,7 @@ class _VehicleCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    PlateBadge(v.plate),
+                    PlateBadge(v.plate, showTr: false),
                     const SizedBox(height: 10),
                     Text(v.title,
                         maxLines: 1,

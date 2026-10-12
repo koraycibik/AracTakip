@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/format.dart';
 import '../../core/theme.dart';
+import '../../data/app_store.dart';
 import '../../data/models.dart';
 import '../../logic/maintenance.dart';
 
@@ -15,9 +16,12 @@ import '../../logic/maintenance.dart';
 // ---------------------------------------------------------------------------
 
 class PlateBadge extends StatelessWidget {
-  const PlateBadge(this.plate, {super.key, this.size = 15});
+  const PlateBadge(this.plate, {super.key, this.size = 15, this.showTr = true});
   final String plate;
   final double size;
+
+  /// Soldaki mavi "TR" şeridi (araç kartında ve araç seçimlerinde yok).
+  final bool showTr;
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +38,7 @@ class PlateBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (showTr)
           Container(
             width: size * 1.2,
             color: AppColors.plateBlue,
@@ -56,6 +61,113 @@ class PlateBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Araç seçimi: TR şeritsiz plaka görünümü, tek veya çoklu seçim
+// ---------------------------------------------------------------------------
+
+/// Plakalar alt alta sarılır (yana kaymaz, taşmaz). Çoklu seçimde en az bir
+/// araç seçili kalır; tekli seçimde dokunulan araç seçilir.
+class PlateSelector extends StatelessWidget {
+  const PlateSelector({
+    super.key,
+    required this.vehicles,
+    required this.selected,
+    required this.onChanged,
+    this.multi = true,
+  });
+  final List<Vehicle> vehicles;
+  final Set<String> selected;
+  final ValueChanged<Set<String>> onChanged;
+  final bool multi;
+
+  void _tap(String id) {
+    if (!multi) {
+      if (!selected.contains(id)) onChanged({id});
+      return;
+    }
+    final next = {...selected};
+    if (next.contains(id)) {
+      if (next.length == 1) return; // en az bir araç seçili kalsın
+      next.remove(id);
+    } else {
+      next.add(id);
+    }
+    onChanged(next);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final v in vehicles)
+          _PlateChip(
+            vehicle: v,
+            selected: selected.contains(v.id),
+            multi: multi,
+            onTap: () => _tap(v.id),
+          ),
+      ],
+    );
+  }
+}
+
+class _PlateChip extends StatelessWidget {
+  const _PlateChip({required this.vehicle, required this.selected, required this.multi, required this.onTap});
+  final Vehicle vehicle;
+  final bool selected;
+  final bool multi;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '${vehicle.plate} ${vehicle.title}',
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 44),
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: selected ? AppColors.accent : Colors.transparent, width: 2.5),
+            ),
+            child: Opacity(
+              opacity: selected ? 1 : 0.4,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  PlateBadge(vehicle.plate, size: 14, showTr: false),
+                  if (multi) ...[
+                    const SizedBox(width: 6),
+                    Icon(selected ? Icons.check_circle : Icons.radio_button_unchecked,
+                        size: 18, color: selected ? AppColors.ink : AppColors.inkSoft),
+                    const SizedBox(width: 2),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Seçimi hatırlayan yardımcı: null = tüm araçlar. Silinmiş araçları ayıklar.
+Set<String> effectiveSelection(Set<String>? sel, List<Vehicle> vehicles) {
+  final ids = {for (final v in vehicles) v.id};
+  final s = sel == null ? ids : sel.intersection(ids);
+  return s.isEmpty ? ids : s;
 }
 
 // ---------------------------------------------------------------------------
@@ -718,4 +830,44 @@ void toast(BuildContext context, String message) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(message)));
+}
+
+/// LPG'li araçlarda "Toplu | Ayrı" seçimi: yakıt satırı tek mi, Benzin ve LPG ayrı mı.
+/// Seçim ayarlarda saklanır (Harcamalar ve Gerçek maliyet ekranları ortak kullanır).
+class LpgSplitToggle extends StatelessWidget {
+  const LpgSplitToggle({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final store = StoreScope.of(context);
+    final split = store.settings.splitLpg;
+    Widget seg(bool v, String label) {
+      final sel = split == v;
+      return Material(
+        color: sel ? AppColors.card : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => store.updateSettings((s) => s.splitLpg = v),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 32),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              child: Text(label,
+                  style: body(12, weight: FontWeight.w700, color: sel ? AppColors.ink : AppColors.inkSoft)),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Semantics(
+      label: 'Benzin ve LPG gösterimi',
+      child: Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(10)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [seg(false, 'Toplu'), seg(true, 'LPG ayrı')]),
+      ),
+    );
+  }
 }

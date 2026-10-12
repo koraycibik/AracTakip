@@ -150,11 +150,16 @@ MonthSummary computeMonthSummary({
         final where = biggest.serviceName ?? "harcamanın %$pct'i";
         text = '${money(top.value)} · $where';
       } else {
+        final fuels = inMonth.where((r) => r.category == RecordCategory.fuel).toList();
+        final hasCharge = inMonth.any((r) => r.category == RecordCategory.charge);
         label = top.key == RecordCategory.fuel
-            ? (inMonth.any((r) => r.category == RecordCategory.charge) &&
-                    !inMonth.any((r) => r.category == RecordCategory.fuel)
+            ? (fuels.isEmpty && hasCharge
                 ? 'şarj'
-                : 'yakıt')
+                : (!hasCharge && fuels.isNotEmpty && fuels.every((r) => r.isLpg))
+                    ? 'LPG'
+                    : (!hasCharge && fuels.isNotEmpty && fuels.every((r) => r.fuelKind == 'gasoline'))
+                        ? 'benzin'
+                        : 'yakıt')
             : top.key.label.toLowerCase();
         text = "${money(top.value)} · harcamanın %$pct'i";
       }

@@ -24,14 +24,16 @@ class RemindersScreen extends StatefulWidget {
 
 class _RemindersScreenState extends State<RemindersScreen> {
   int _tab = 0; // 0 yaklaşan, 1 geciken, 2 tamamlanan
+  Set<String>? _vehicleIds; // null = tüm araçlar
 
   @override
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
-    final all = store.reminders;
+    final sel = effectiveSelection(_vehicleIds, store.vehicles);
+    final all = store.reminders.where((r) => sel.contains(r.vehicle.id)).toList();
     final upcoming = all.where((r) => !r.isOverdue).toList();
     final overdue = all.where((r) => r.isOverdue).toList();
-    final done = store.completedDecisions;
+    final done = store.completedDecisions.where((d) => sel.contains(d.vehicleId)).toList();
     final nearest = overdue.isNotEmpty ? overdue.first : (upcoming.isEmpty ? null : upcoming.first);
 
     final content = ListView(
@@ -46,6 +48,14 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Text('Hatırlatmalar', style: display(28, weight: FontWeight.w800)),
                 ),
+              if (store.vehicles.length > 1) ...[
+                PlateSelector(
+                  vehicles: store.vehicles,
+                  selected: sel,
+                  onChanged: (s) => setState(() => _vehicleIds = s),
+                ),
+                const SizedBox(height: 14),
+              ],
               if (nearest != null) ...[
                 _NearestCard(reminder: nearest),
                 const SizedBox(height: 14),

@@ -209,7 +209,9 @@ class _Header extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 14),
-            Row(
+            IntrinsicHeight(
+             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(child: _HeaderStat('Bu ay harcama', money(store.monthTotal(v.id)))),
                 const SizedBox(width: 8),
@@ -217,6 +219,7 @@ class _Header extends StatelessWidget {
                   child: _HeaderStat(
                     v.fuelType == FuelType.electric ? 'Şarj / 100 km' : 'Yakıt / 100 km',
                     per100 == null ? '—' : money(per100),
+                    note: _lpgNote(store.lpgShare(v)),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -229,11 +232,19 @@ class _Header extends StatelessWidget {
                   ),
                 ),
               ],
+             ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  /// "LPG %70 · Benzin %30" (son 90 gün yakıt harcaması).
+  static String? _lpgNote(double? share) {
+    if (share == null) return null;
+    final l = (share * 100).round();
+    return 'LPG %$l · Benzin %${100 - l}';
   }
 
   static String _perDayText(AppStore store, Vehicle v) {
@@ -244,10 +255,11 @@ class _Header extends StatelessWidget {
 }
 
 class _HeaderStat extends StatelessWidget {
-  const _HeaderStat(this.label, this.value, {this.onTap});
+  const _HeaderStat(this.label, this.value, {this.onTap, this.note});
   final String label;
   final String value;
   final VoidCallback? onTap;
+  final String? note;
 
   @override
   Widget build(BuildContext context) {
@@ -275,6 +287,12 @@ class _HeaderStat extends StatelessWidget {
                 alignment: Alignment.centerLeft,
                 child: Text(value, style: display(18, weight: FontWeight.w700, color: Colors.white)),
               ),
+              if (note != null)
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(note!, style: body(11, weight: FontWeight.w600, color: AppColors.navySoft)),
+                ),
             ],
           ),
         ),
@@ -335,14 +353,15 @@ class _StatusGrid extends StatelessWidget {
           v.inspectionDueDate,
           () => editDate('Muayene', v.inspectionDueDate, (d) => v.inspectionDueDate = d)),
       _StatusTile(
-        label: 'MTV',
+        label: mtv == null ? 'MTV' : (mtv.title.contains('2.') ? 'MTV 2/2' : 'MTV 1/2'),
         icon: Icons.receipt_long,
         color: AppColors.catTax,
         tint: AppColors.catTaxTint,
         value: mtv == null ? (v.mtvReminder ? 'Ödendi' : 'Kapalı') : mtv.badgeText,
         state: mtv?.state ?? DueState.ok,
         progress: mtv == null ? 1 : _timeProgress(mtv.dueDate, 182),
-        sub: mtv == null ? null : mtv.title.replaceFirst('MTV ', ''),
+        // Taksit bilgisi başlıkta kısa ("MTV 1/2"), tarih alt satırda: kutu genişlemez.
+        sub: mtv == null ? null : dateNumeric(mtv.dueDate),
       ),
       _StatusTile(
         label: tire == null ? 'Lastik' : (tire.title.startsWith('Kış') ? 'Kış lastiği' : 'Yaz lastiği'),
@@ -352,6 +371,7 @@ class _StatusGrid extends StatelessWidget {
         value: tire == null ? (v.seasonalTireReminder ? 'Güncel' : 'Kapalı') : tire.badgeText,
         state: tire?.state ?? DueState.ok,
         progress: tire == null ? 1 : _timeProgress(tire.dueDate, 180),
+        sub: tire == null ? null : dateNumeric(tire.dueDate),
       ),
       _StatusTile(
         label: nearest == null ? 'Bakım' : nearest.item.name.split(' (').first,
@@ -361,6 +381,7 @@ class _StatusGrid extends StatelessWidget {
         value: nearest == null ? '—' : nearest.leftText,
         state: nearest?.state ?? DueState.ok,
         progress: nearest == null ? 0 : 1 - nearest.used,
+        sub: nearest?.estimatedDue == null ? null : 'Tahmini ${dateNumeric(nearest!.estimatedDue!)}',
         onTap: () => Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => MaintenancePlanScreen(vehicleId: v.id))),
       ),
@@ -473,23 +494,25 @@ class _StatusTile extends StatelessWidget {
                     weight: FontWeight.w700,
                     color: valueColor ?? (state == DueState.ok ? AppColors.ink : fg))),
           ),
-          if (sub != null)
-            Text(sub!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: body(11, color: AppColors.inkSoft)),
-          if (progress != null) ...[
-            const SizedBox(height: 6),
-            ClipRRect(
+          // Alt satır ve çubuk her kutuda yer kaplar (boş olsa bile),
+          // böylece bütün kutular aynı yükseklikte kalır, kayma olmaz.
+          Text(sub ?? ' ',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: body(11, color: AppColors.inkSoft)),
+          const SizedBox(height: 6),
+          Opacity(
+            opacity: progress == null ? 0 : 1,
+            child: ClipRRect(
               borderRadius: BorderRadius.circular(99),
               child: LinearProgressIndicator(
-                value: progress,
+                value: progress ?? 0,
                 minHeight: 5,
                 backgroundColor: AppColors.divider,
                 valueColor: AlwaysStoppedAnimation(barColor),
               ),
             ),
-          ],
+          ),
         ],
       ),
     );

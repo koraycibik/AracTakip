@@ -73,7 +73,7 @@ List<String> jobsFor(VehicleType type, FuelType fuel) {
     'coolant',
     'brake_fluid',
     'battery_check',
-    if (fuel == FuelType.lpg || fuel == FuelType.gasolineLpg) 'lpg_service',
+    if (fuel == FuelType.gasolineLpg) 'lpg_service',
     if (type == VehicleType.truck || type == VehicleType.bus || type == VehicleType.minibus) 'transmission_oil',
     if (type != VehicleType.motorcycle && type != VehicleType.atv) 'ac_service',
   ];

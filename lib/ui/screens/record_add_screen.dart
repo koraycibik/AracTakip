@@ -74,6 +74,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
       final v = _vehicleId == null ? null : store.vehicle(_vehicleId!);
       if (v != null) {
         _km.text = thousands(v.currentKm);
+        _fuelKind = store.lastFuelKind(v.id) ?? 'gasoline';
         _cat = widget.initialCategory ??
             (v.fuelType.usesFuel ? RecordCategory.fuel : RecordCategory.charge);
       }
@@ -104,6 +105,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
     setState(() {
       _vehicleId = v.id;
       _km.text = thousands(v.currentKm);
+      _fuelKind = StoreScope.read(context).lastFuelKind(v.id) ?? 'gasoline';
       final cats = _categoriesFor(v);
       if (!cats.contains(_cat)) _cat = cats.first;
       _jobs.clear();
@@ -164,7 +166,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
       ..date = _date
       ..km = km
       ..amountKurus = amount
-      ..fuelKind = (_cat == RecordCategory.fuel && v.fuelType == FuelType.gasolineLpg) ? _fuelKind : null
+      ..fuelKind = (_cat == RecordCategory.fuel && v.fuelType.hasLpg) ? _fuelKind : null
       ..energyKwh = _cat == RecordCategory.charge ? parseDecimal(_kwh.text) : null
       ..chargeLocation = _cat == RecordCategory.charge ? _chargeLoc : null
       ..jobs = _cat == RecordCategory.maintenance ? _jobs.toList() : []
@@ -264,40 +266,41 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        if (vehicles.length > 1) ...[
-                          SizedBox(
-                            height: 52,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: vehicles.length,
-                              separatorBuilder: (_, _) => const SizedBox(width: 8),
-                              itemBuilder: (_, i) {
-                                final x = vehicles[i];
-                                final sel = x.id == v.id;
-                                return _VehicleChip(vehicle: x, selected: sel, onTap: () => _selectVehicle(x));
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                        ] else ...[
-                          _VehicleChip(vehicle: v, selected: true, onTap: () {}),
-                          const SizedBox(height: 14),
-                        ],
+                        // Plakalar alt alta sarılır: sabit yükseklik yok, taşma ve yana kayma olmaz.
+                        PlateSelector(
+                          vehicles: vehicles,
+                          selected: {v.id},
+                          multi: false,
+                          onChanged: (s) => _selectVehicle(vehicles.firstWhere((x) => x.id == s.first)),
+                        ),
+                        const SizedBox(height: 4),
+                        Text('${v.title} · ${v.fuelType.label}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: body(12, color: AppColors.inkSoft)),
+                        const SizedBox(height: 14),
                         _CategoryGrid(
                           categories: cats,
                           selected: _cat,
                           onSelect: (c) => setState(() => _cat = c),
                         ),
                         const SizedBox(height: 14),
-                        _AmountField(controller: _amount, label: _amountLabel, color: style.color),
-                        if (_cat == RecordCategory.fuel && v.fuelType == FuelType.gasolineLpg) ...[
-                          const SizedBox(height: 12),
+                        // LPG'li araçta önce ne alındığı seçilir, sonra tutar girilir.
+                        if (_cat == RecordCategory.fuel && v.fuelType.hasLpg) ...[
                           _Segmented(
                             options: const {'gasoline': 'Benzin', 'lpg': 'LPG'},
                             value: _fuelKind,
                             onChanged: (k) => setState(() => _fuelKind = k),
                           ),
+                          const SizedBox(height: 12),
                         ],
+                        _AmountField(
+                          controller: _amount,
+                          label: (_cat == RecordCategory.fuel && v.fuelType.hasLpg)
+                              ? (_fuelKind == 'lpg' ? "LPG'ye ödenen tutar" : 'Benzine ödenen tutar')
+                              : _amountLabel,
+                          color: style.color,
+                        ),
                         if (_cat == RecordCategory.charge) ...[
                           const SizedBox(height: 12),
                           Row(
@@ -513,50 +516,6 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
   }
 }
 
-class _VehicleChip extends StatelessWidget {
-  const _VehicleChip({required this.vehicle, required this.selected, required this.onTap});
-  final Vehicle vehicle;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: selected ? AppColors.navy : AppColors.card,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: selected ? AppColors.navy : AppColors.border, width: 2),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(vehicleIcon(vehicle.type),
-                  size: 20, color: selected ? AppColors.accent : AppColors.inkSoft),
-              const SizedBox(width: 8),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(vehicle.title,
-                      style: display(13, weight: FontWeight.w700, color: selected ? Colors.white : AppColors.ink)),
-                  Text('${vehicle.plate} · ${vehicle.fuelType.label}',
-                      style: body(11, color: selected ? AppColors.navySoft : AppColors.inkSoft)),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _CategoryGrid extends StatelessWidget {
   const _CategoryGrid({required this.categories, required this.selected, required this.onSelect});
   final List<RecordCategory> categories;
@@ -614,11 +573,13 @@ class _CategoryButton extends StatelessWidget {
               children: [
                 TintIcon(s.icon, s.color, s.tint, size: 36),
                 const SizedBox(height: 5),
-                Text(cat.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.fade,
-                    softWrap: false,
-                    style: body(12, weight: FontWeight.w700)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(cat.label, maxLines: 1, style: body(12, weight: FontWeight.w700)),
+                  ),
+                ),
               ],
             ),
           ),

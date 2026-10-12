@@ -42,7 +42,7 @@ enum VehicleType {
 enum FuelType {
   gasoline('gasoline', 'Benzin'),
   diesel('diesel', 'Dizel'),
-  lpg('lpg', 'LPG'),
+  // Eski "LPG" seçeneği "Benzin + LPG" ile birleştirildi (LPG'li araçlar benzinle de çalışır).
   gasolineLpg('gasoline_lpg', 'Benzin + LPG'),
   hybrid('hybrid', 'Hibrit'),
   pluginHybrid('plugin_hybrid', 'Şarjlı hibrit'),
@@ -62,8 +62,13 @@ enum FuelType {
   /// Motor yağı vb. içten yanmalı bakımı var mı?
   bool get hasEngine => this != FuelType.electric;
 
-  static FuelType fromKey(String? k) =>
-      values.firstWhere((e) => e.key == k, orElse: () => FuelType.gasoline);
+  /// LPG'li araç mı? (Yakıt girerken Benzin / LPG seçimi çıkar.)
+  bool get hasLpg => this == FuelType.gasolineLpg;
+
+  static FuelType fromKey(String? k) {
+    if (k == 'lpg') return FuelType.gasolineLpg; // eski kayıtlar
+    return values.firstWhere((e) => e.key == k, orElse: () => FuelType.gasoline);
+  }
 }
 
 enum RecordCategory {
@@ -297,6 +302,9 @@ class ExpenseRecord {
 
   /// Sigorta kaydında: 'traffic' (trafik sigortası) veya 'casco' (kasko).
   String? insuranceKind;
+
+  /// LPG alımı mı? (Yakıt kaydında Benzin / LPG seçimi.)
+  bool get isLpg => category == RecordCategory.fuel && fuelKind == 'lpg';
   final DateTime createdAt;
 
   /// Listede gösterilecek başlık.
@@ -304,6 +312,7 @@ class ExpenseRecord {
     switch (category) {
       case RecordCategory.fuel:
         if (fuelKind == 'lpg') return 'LPG alımı';
+        if (fuelKind == 'gasoline') return 'Benzin alımı';
         return 'Yakıt alımı';
       case RecordCategory.charge:
         return chargeLocation == null
@@ -485,6 +494,55 @@ class Accident {
 }
 
 // ---------------------------------------------------------------------------
+// Usta / servis değerlendirmesi (usta defterinde puan ve not)
+// ---------------------------------------------------------------------------
+
+class WorkshopReview {
+  WorkshopReview({
+    required this.key,
+    required this.name,
+    this.rating = 0,
+    this.note = '',
+    this.city,
+    required this.updatedAt,
+  });
+
+  /// normalizeTr(servis adı): aynı usta farklı yazımlarla tek kayıt olur.
+  final String key;
+  String name;
+
+  /// 1–5 yıldız, 0 = puan verilmedi.
+  int rating;
+
+  /// Kişisel not (≤ 500 karakter).
+  String note;
+
+  /// Servisin bulunduğu il (ileride firmaların ortak puanı için).
+  String? city;
+  DateTime updatedAt;
+
+  bool get isEmpty => rating == 0 && note.trim().isEmpty && city == null;
+
+  Map<String, dynamic> toJson() => {
+        'key': key,
+        'name': name,
+        'rating': rating,
+        'note': note,
+        'city': city,
+        'updatedAt': _iso(updatedAt),
+      };
+
+  factory WorkshopReview.fromJson(Map<String, dynamic> j) => WorkshopReview(
+        key: j['key'] as String,
+        name: j['name'] as String? ?? '',
+        rating: ((j['rating'] as num?)?.toInt() ?? 0).clamp(0, 5),
+        note: j['note'] as String? ?? '',
+        city: j['city'] as String?,
+        updatedAt: _date(j['updatedAt']) ?? DateTime.now(),
+      );
+}
+
+// ---------------------------------------------------------------------------
 // Hatırlatma kararı (tamamlandı / ertelendi) — "Tamamlanan" sekmesi de buradan
 // ---------------------------------------------------------------------------
 
@@ -539,6 +597,7 @@ class AppSettings {
     List<int>? leadDays,
     this.kmPromptDays = 14,
     this.linkCardDismissedAt,
+    this.splitLpg = true,
   }) : leadDays = leadDays ?? [30, 7, 1];
 
   bool onboarded;
@@ -549,6 +608,9 @@ class AppSettings {
   int kmPromptDays;
   DateTime? linkCardDismissedAt;
 
+  /// Harcamalar ve Gerçek maliyet ekranlarında LPG ile benzini ayrı göster.
+  bool splitLpg;
+
   Map<String, dynamic> toJson() => {
         'onboarded': onboarded,
         'notificationsEnabled': notificationsEnabled,
@@ -557,6 +619,7 @@ class AppSettings {
         'leadDays': leadDays,
         'kmPromptDays': kmPromptDays,
         'linkCardDismissedAt': _iso(linkCardDismissedAt),
+        'splitLpg': splitLpg,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> j) => AppSettings(
@@ -567,5 +630,6 @@ class AppSettings {
         leadDays: ((j['leadDays'] as List?) ?? [30, 7, 1]).cast<int>(),
         kmPromptDays: j['kmPromptDays'] as int? ?? 14,
         linkCardDismissedAt: _date(j['linkCardDismissedAt']),
+        splitLpg: j['splitLpg'] as bool? ?? true,
       );
 }

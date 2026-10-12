@@ -21,7 +21,7 @@ class StatsScreen extends StatefulWidget {
 class _StatsScreenState extends State<StatsScreen> {
   StatsPeriod _period = StatsPeriod.sixMonths;
   DateTimeRange? _custom;
-  String? _vehicleId; // null = tüm araçlar
+  Set<String>? _vehicleIds; // null = tüm araçlar
 
   Future<void> _pickRange() async {
     final now = DateTime.now();
@@ -47,17 +47,17 @@ class _StatsScreenState extends State<StatsScreen> {
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
     final allVehicles = store.vehicles;
-    if (_vehicleId != null && store.vehicle(_vehicleId!) == null) _vehicleId = null;
-    final vehicles = _vehicleId == null
-        ? allVehicles
-        : allVehicles.where((v) => v.id == _vehicleId).toList();
+    final sel = effectiveSelection(_vehicleIds, allVehicles);
+    final vehicles = allVehicles.where((v) => sel.contains(v.id)).toList();
 
     final res = computeStats(
       vehicles: vehicles,
       records: store.allRecords,
       period: _period,
       customRange: _custom,
+      splitLpg: store.settings.splitLpg,
     );
+    final showLpgToggle = vehicles.any((v) => v.fuelType.hasLpg);
     final maxGroup = res.groups.isEmpty
         ? 0
         : res.groups.map((g) => g.amountKurus).reduce((a, b) => a > b ? a : b);
@@ -72,37 +72,16 @@ class _StatsScreenState extends State<StatsScreen> {
               Row(
                 children: [
                   Expanded(child: Text('Harcamalar', style: display(28, weight: FontWeight.w800))),
-                  if (allVehicles.length > 1)
-                    PopupMenuButton<String>(
-                      tooltip: 'Araç seç',
-                      onSelected: (id) => setState(() => _vehicleId = id == '*' ? null : id),
-                      itemBuilder: (_) => [
-                        const PopupMenuItem(value: '*', child: Text('Tüm araçlar')),
-                        for (final v in allVehicles)
-                          PopupMenuItem(value: v.id, child: Text('${v.plate} · ${v.title}')),
-                      ],
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: AppColors.card,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.border, width: 1.5),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              _vehicleId == null ? 'Tüm araçlar' : store.vehicle(_vehicleId!)!.plate,
-                              style: body(13, weight: FontWeight.w700),
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.expand_more, size: 18),
-                          ],
-                        ),
-                      ),
-                    ),
                 ],
               ),
+              if (allVehicles.length > 1) ...[
+                const SizedBox(height: 10),
+                PlateSelector(
+                  vehicles: allVehicles,
+                  selected: sel,
+                  onChanged: (s) => setState(() => _vehicleIds = s),
+                ),
+              ],
               if (allVehicles.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 const MonthSummaryLinkCard(),
@@ -137,7 +116,12 @@ class _StatsScreenState extends State<StatsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text('Nereye harcadım?', style: display(16, weight: FontWeight.w700)),
+                    Row(
+                      children: [
+                        Expanded(child: Text('Nereye harcadım?', style: display(16, weight: FontWeight.w700))),
+                        if (showLpgToggle) const LpgSplitToggle(),
+                      ],
+                    ),
                     const SizedBox(height: 12),
                     if (res.totalKurus == 0)
                       Text('Bu dönemde kayıt yok.', style: body(13, color: AppColors.inkSoft))

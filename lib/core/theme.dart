@@ -23,6 +23,9 @@ class AppColors {
   // Kategori renkleri (ikon / açık zemin)
   static const catFuel = Color(0xFFE8590C);
   static const catFuelTint = Color(0xFFFFE9D9);
+  // LPG: yakıttan ayrı gösterildiğinde (açıklık farkıyla da ayırt edilir).
+  static const catLpg = Color(0xFF8A5A00);
+  static const catLpgTint = Color(0xFFFFF1D6);
   static const catCharge = Color(0xFF0B7FA8);
   static const catChargeTint = Color(0xFFDDF1F8);
   static const catMaint = Color(0xFF2457E6);
@@ -107,7 +110,6 @@ IconData fuelIcon(FuelType f) {
     case FuelType.gasoline:
     case FuelType.diesel:
       return Icons.local_gas_station;
-    case FuelType.lpg:
     case FuelType.gasolineLpg:
       return Icons.oil_barrel;
     case FuelType.hybrid:

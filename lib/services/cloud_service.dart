@@ -274,6 +274,12 @@ class CloudService {
       final m = Map<String, dynamic>.from(d as Map);
       out['$root/reminders/${_docIdFor(m['key'] as String)}'] = m;
     }
+    for (final d in (data['workshopReviews'] as List? ?? const [])) {
+      final m = Map<String, dynamic>.from(d as Map);
+      final key = m['key'] as String? ?? '';
+      if (key.isEmpty) continue;
+      out['$root/workshops/w${key.length > 120 ? key.substring(0, 120) : key}'] = {...m, 'ownerUid': uid};
+    }
     return out;
   }
 
@@ -286,6 +292,7 @@ class CloudService {
     final userSnap = await root.get(server);
     final vehSnap = await root.collection('vehicles').get(server);
     final remSnap = await root.collection('reminders').get(server);
+    final wsSnap = await root.collection('workshops').get(server);
     final records = <Map<String, dynamic>>[];
     final items = <Map<String, dynamic>>[];
     final accidents = <Map<String, dynamic>>[];
@@ -305,6 +312,7 @@ class CloudService {
       'maintenanceItems': items,
       'accidents': accidents,
       'reminderDecisions': [for (final d in remSnap.docs) _fromCloud(d.data())],
+      'workshopReviews': [for (final d in wsSnap.docs) _fromCloud(d.data())],
       if (userData != null && userData['settings'] is Map) 'settings': _fromCloud(Map<String, dynamic>.from(userData['settings'] as Map)),
     };
   }
@@ -332,6 +340,7 @@ class CloudService {
       'maintenanceItems': union('maintenanceItems', 'id'),
       'accidents': union('accidents', 'id'),
       'reminderDecisions': union('reminderDecisions', 'key'),
+      'workshopReviews': union('workshopReviews', 'key'),
       'settings': hasCloudSettings ? cloud['settings'] : local['settings'],
     };
   }
@@ -348,7 +357,7 @@ class CloudService {
   // Tarih alanları bulutta Timestamp, telefonda ISO metin.
   static const _dateKeys = {
     'date', 'createdAt', 'kmUpdatedAt', 'inspectionDueDate', 'trafficInsuranceEndDate',
-    'cascoEndDate', 'dueDate', 'lastDoneDate', 'decidedAt', 'snoozedUntil', 'linkCardDismissedAt',
+    'cascoEndDate', 'dueDate', 'lastDoneDate', 'decidedAt', 'snoozedUntil', 'linkCardDismissedAt', 'updatedAt',
   };
 
   static dynamic _toCloudValue(String? key, dynamic v) {
@@ -580,6 +589,8 @@ class CloudService {
     }
     final rem = await root.collection('reminders').get();
     refs.addAll(rem.docs.map((d) => d.reference));
+    final ws = await root.collection('workshops').get();
+    refs.addAll(ws.docs.map((d) => d.reference));
     refs.add(root);
     for (var i = 0; i < refs.length; i += 450) {
       final batch = _db.batch();

@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 
-import '../../core/theme.dart';
 import '../../data/app_store.dart';
 import '../widgets/common.dart';
 import 'service_history_screen.dart';
@@ -34,22 +33,11 @@ class _HistoryTabState extends State<HistoryTab> {
 
     final picker = vehicles.length < 2
         ? null
-        : SizedBox(
-            height: 42,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: vehicles.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 8),
-              itemBuilder: (_, i) {
-                final v = vehicles[i];
-                return PillChoice(
-                  label: v.plate,
-                  selected: v.id == selected.id,
-                  color: AppColors.navy,
-                  onTap: () => setState(() => _vehicleId = v.id),
-                );
-              },
-            ),
+        : PlateSelector(
+            vehicles: vehicles,
+            selected: {selected.id},
+            multi: false,
+            onChanged: (s) => setState(() => _vehicleId = s.first),
           );
 
     return ServiceHistoryBody(

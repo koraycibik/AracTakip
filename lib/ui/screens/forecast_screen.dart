@@ -13,10 +13,10 @@ import '../widgets/common.dart';
 /// Garaj ve özet ekranlarında kullanılan kısa ad: "Clio", yoksa plaka.
 String vehicleShortName(Vehicle v) => v.model.trim().isNotEmpty ? v.model.trim() : v.plate;
 
-ForecastResult forecastFor(AppStore store, {String? vehicleId}) {
-  final vs = vehicleId == null
+ForecastResult forecastFor(AppStore store, {Set<String>? vehicleIds}) {
+  final vs = vehicleIds == null
       ? store.vehicles
-      : store.vehicles.where((v) => v.id == vehicleId).toList();
+      : store.vehicles.where((v) => vehicleIds.contains(v.id)).toList();
   return computeForecast(
     vehicles: vs,
     records: store.allRecords,
@@ -34,21 +34,21 @@ class ForecastScreen extends StatefulWidget {
 }
 
 class _ForecastScreenState extends State<ForecastScreen> {
-  String? _vehicleId;
+  Set<String>? _vehicleIds; // null = tüm araçlar
 
   @override
   void initState() {
     super.initState();
-    _vehicleId = widget.vehicleId;
+    if (widget.vehicleId != null) _vehicleIds = {widget.vehicleId!};
   }
 
   @override
   Widget build(BuildContext context) {
     final store = StoreScope.of(context);
     final vehicles = store.vehicles;
-    if (_vehicleId != null && store.vehicle(_vehicleId!) == null) _vehicleId = null;
-    final f = forecastFor(store, vehicleId: _vehicleId);
-    final multi = vehicles.length > 1 && _vehicleId == null;
+    final sel = effectiveSelection(_vehicleIds, vehicles);
+    final f = forecastFor(store, vehicleIds: sel);
+    final multi = sel.length > 1;
 
     return Scaffold(
       body: SafeArea(
@@ -67,26 +67,10 @@ class _ForecastScreenState extends State<ForecastScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if (vehicles.length > 1) ...[
-                      SizedBox(
-                        height: 42,
-                        child: ListView(
-                          scrollDirection: Axis.horizontal,
-                          children: [
-                            PillChoice(
-                              label: 'Tümü',
-                              selected: _vehicleId == null,
-                              onTap: () => setState(() => _vehicleId = null),
-                            ),
-                            for (final v in vehicles) ...[
-                              const SizedBox(width: 8),
-                              PillChoice(
-                                label: vehicleShortName(v),
-                                selected: _vehicleId == v.id,
-                                onTap: () => setState(() => _vehicleId = v.id),
-                              ),
-                            ],
-                          ],
-                        ),
+                      PlateSelector(
+                        vehicles: vehicles,
+                        selected: sel,
+                        onChanged: (s) => setState(() => _vehicleIds = s),
                       ),
                       const SizedBox(height: 14),
                     ],

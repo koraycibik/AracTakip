@@ -28,6 +28,7 @@ class AppStore extends ChangeNotifier {
   final List<MaintenanceItem> _items = [];
   final List<Accident> _accidents = [];
   final List<ReminderDecision> _decisions = [];
+  final List<WorkshopReview> _reviews = [];
   AppSettings settings = AppSettings();
 
   /// Veri her değiştiğinde çağrılır (bildirimleri yeniden planlamak için).
@@ -46,6 +47,7 @@ class AppStore extends ChangeNotifier {
     if (raw != null && raw.isNotEmpty) {
       try {
         final j = jsonDecode(raw) as Map<String, dynamic>;
+        final migrated = _migrateLegacyLpg(j);
         List<Map<String, dynamic>> list(String k) => ((j[k] as List?) ?? [])
             .map((e) => Map<String, dynamic>.from(e as Map))
             .toList();
@@ -54,9 +56,11 @@ class AppStore extends ChangeNotifier {
         _items.addAll(list('maintenanceItems').map(MaintenanceItem.fromJson));
         _accidents.addAll(list('accidents').map(Accident.fromJson));
         _decisions.addAll(list('reminderDecisions').map(ReminderDecision.fromJson));
+        _reviews.addAll(list('workshopReviews').map(WorkshopReview.fromJson));
         if (j['settings'] is Map) {
           settings = AppSettings.fromJson(Map<String, dynamic>.from(j['settings'] as Map));
         }
+        if (migrated) unawaited(_save());
       } catch (e) {
         debugPrint('Veri okunamadı: $e');
       }
@@ -73,11 +77,32 @@ class AppStore extends ChangeNotifier {
         'maintenanceItems': _items.map((e) => e.toJson()).toList(),
         'accidents': _accidents.map((e) => e.toJson()).toList(),
         'reminderDecisions': _decisions.map((e) => e.toJson()).toList(),
+        'workshopReviews': _reviews.map((e) => e.toJson()).toList(),
         'settings': settings.toJson(),
       };
 
+  /// Eski "LPG" yakıt tipindeki araçları "Benzin + LPG"ye çevirir; o araçların türü
+  /// belirtilmemiş yakıt kayıtlarını LPG sayar. Değişiklik olduysa true döner.
+  static bool _migrateLegacyLpg(Map<String, dynamic> j) {
+    final lpgIds = <String>{};
+    for (final v in (j['vehicles'] as List? ?? const [])) {
+      if (v is Map && v['fuelType'] == 'lpg') {
+        v['fuelType'] = 'gasoline_lpg';
+        lpgIds.add(v['id'] as String);
+      }
+    }
+    if (lpgIds.isEmpty) return false;
+    for (final r in (j['records'] as List? ?? const [])) {
+      if (r is Map && r['category'] == 'fuel' && lpgIds.contains(r['vehicleId']) && r['fuelKind'] == null) {
+        r['fuelKind'] = 'lpg';
+      }
+    }
+    return true;
+  }
+
   /// Bellekteki tüm veriyi [j] ile değiştirir (buluttan gelen veri için).
   void replaceAll(Map<String, dynamic> j) {
+    _migrateLegacyLpg(j);
     List<Map<String, dynamic>> list(String k) => ((j[k] as List?) ?? [])
         .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();
@@ -96,6 +121,9 @@ class AppStore extends ChangeNotifier {
     _decisions
       ..clear()
       ..addAll(list('reminderDecisions').map(ReminderDecision.fromJson));
+    _reviews
+      ..clear()
+      ..addAll(list('workshopReviews').map(WorkshopReview.fromJson));
     if (j['settings'] is Map) {
       settings = AppSettings.fromJson(Map<String, dynamic>.from(j['settings'] as Map));
     }
@@ -206,6 +234,31 @@ class AppStore extends ChangeNotifier {
   }
 
   int? energyPer100(Vehicle v) => km_logic.energyCostPer100Km(v, _records);
+
+  /// LPG'li araçta son [days] günün yakıt harcamasında LPG payı (0..1); veri yoksa null.
+  double? lpgShare(Vehicle v, {int days = 90}) {
+    if (!v.fuelType.hasLpg) return null;
+    final since = DateTime.now().subtract(Duration(days: days));
+    var lpg = 0;
+    var all = 0;
+    for (final r in _records) {
+      if (r.vehicleId != v.id || r.category != RecordCategory.fuel || r.date.isBefore(since)) continue;
+      all += r.amountKurus;
+      if (r.isLpg) lpg += r.amountKurus;
+    }
+    return all == 0 ? null : lpg / all;
+  }
+
+  /// Bu araçta en son girilen yakıt türü ('gasoline' / 'lpg'); yoksa null.
+  String? lastFuelKind(String vehicleId) {
+    for (final r in recordsFor(vehicleId)) {
+      if (r.category == RecordCategory.fuel && r.fuelKind != null) return r.fuelKind;
+    }
+    return null;
+  }
+
+  /// Garajda LPG'li araç var mı? (Benzin / LPG ayrı-toplu düğmesi için.)
+  bool get hasLpgVehicle => vehicles.any((v) => v.fuelType.hasLpg);
 
   // -------------------------------------------------------------------------
   // Ayarlar
@@ -349,6 +402,27 @@ class AppStore extends ChangeNotifier {
   // Kazalar
   // -------------------------------------------------------------------------
 
+  // -------------------------------------------------------------------------
+  // Usta defteri: puan ve not
+  // -------------------------------------------------------------------------
+
+  WorkshopReview? reviewFor(String workshopKey) {
+    for (final r in _reviews) {
+      if (r.key == workshopKey) return r;
+    }
+    return null;
+  }
+
+  /// Puan/not kaydeder; hepsi boşsa değerlendirmeyi kaldırır.
+  void saveReview(WorkshopReview r) {
+    _reviews.removeWhere((x) => x.key == r.key);
+    if (!r.isEmpty) {
+      r.updatedAt = DateTime.now();
+      _reviews.add(r);
+    }
+    _changed();
+  }
+
   void addAccident(Accident a) {
     _accidents.add(a);
     _changed();
@@ -436,6 +510,7 @@ class AppStore extends ChangeNotifier {
     _items.clear();
     _accidents.clear();
     _decisions.clear();
+    _reviews.clear();
     settings = AppSettings();
     _cache.clear();
     await _prefs?.remove(_storageKey);

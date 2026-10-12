@@ -25,13 +25,14 @@ class _TrueCostScreenState extends State<TrueCostScreen> {
     final store = StoreScope.of(context);
     final v = store.vehicle(widget.vehicleId);
     if (v == null) return const Scaffold();
-    final c = computeTrueCost(v, store.allRecords, _period);
+    final split = store.settings.splitLpg;
+    final c = computeTrueCost(v, store.allRecords, _period, splitLpg: split);
     final perKm = c.perKmKurus;
 
     // Karşılaştırma: km başı maliyeti hesaplanabilen tüm araçlar.
     final compare = <(String, double, bool)>[];
     for (final o in store.vehicles) {
-      final oc = o.id == v.id ? c : computeTrueCost(o, store.allRecords, _period);
+      final oc = o.id == v.id ? c : computeTrueCost(o, store.allRecords, _period, splitLpg: split);
       final pk = oc.perKmKurus;
       if (pk != null) compare.add((o.title, pk, o.id == v.id));
     }
@@ -141,6 +142,10 @@ class _TrueCostScreenState extends State<TrueCostScreen> {
                                 style: body(12, weight: FontWeight.w600, color: AppColors.inkSoft)),
                           ],
                         ),
+                        if (v.fuelType.hasLpg) ...[
+                          const SizedBox(height: 8),
+                          const Align(alignment: Alignment.centerLeft, child: LpgSplitToggle()),
+                        ],
                         const SizedBox(height: 10),
                         for (final g in c.groups)
                           Padding(

@@ -362,7 +362,9 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
         const SizedBox(height: 14),
         const FieldLabel('Yakıt tipi'),
         LayoutBuilder(builder: (context, c) {
-          final w = (c.maxWidth - 2 * 8) / 3;
+          // Telefonda 2 sütun: "Benzin + LPG", "Şarjlı hibrit" kesilmeden sığar.
+          final cols = c.maxWidth >= 520 ? 3 : 2;
+          final w = (c.maxWidth - (cols - 1) * 8) / cols;
           return Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -647,11 +649,14 @@ class _ChoiceTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final fg = selected ? Colors.white : AppColors.ink;
     final ic = selected ? AppColors.accent : AppColors.inkSoft;
-    final text = Text(label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        textAlign: TextAlign.center,
-        style: body(horizontal ? 13 : 11, weight: FontWeight.w700, color: fg));
+    // Uzun adlar "..." ile kesilmez, gerekirse biraz küçülür; kutu boyu sabit kalır.
+    final text = FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(label,
+          maxLines: 1,
+          textAlign: TextAlign.center,
+          style: body(horizontal ? 13 : 11, weight: FontWeight.w700, color: fg)),
+    );
     return Semantics(
       selected: selected,
       button: true,

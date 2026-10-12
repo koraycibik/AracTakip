@@ -11,11 +11,16 @@ import 'km.dart';
 enum CostPeriod { year, all }
 
 class CostGroup {
-  CostGroup(this.label, this.color, this.cats);
+  CostGroup(this.label, this.color, this.cats, {this.match});
   final String label;
   final Color color;
   final Set<RecordCategory> cats;
+
+  /// Kategori yerine kayda göre eşleşme (LPG ayrı gösterildiğinde).
+  final bool Function(ExpenseRecord r)? match;
   int kurus = 0;
+
+  bool accepts(ExpenseRecord r) => match != null ? match!(r) : cats.contains(r.category);
 }
 
 class TrueCost {
@@ -48,16 +53,24 @@ class TrueCost {
   bool get isShort => days < 30;
 }
 
-List<CostGroup> _groups(Vehicle v) => [
-      CostGroup(v.fuelType == FuelType.electric ? 'Şarj' : (v.fuelType.usesCharge ? 'Yakıt ve şarj' : 'Yakıt'),
-          AppColors.catFuel, {RecordCategory.fuel, RecordCategory.charge}),
+List<CostGroup> _groups(Vehicle v, bool splitLpg) => [
+      if (splitLpg && v.fuelType.hasLpg)
+        CostGroup('LPG', AppColors.catLpg, {RecordCategory.fuel}, match: (r) => r.isLpg),
+      CostGroup(
+          v.fuelType == FuelType.electric
+              ? 'Şarj'
+              : (v.fuelType.hasLpg
+                  ? (splitLpg ? 'Benzin' : 'Yakıt (benzin + LPG)')
+                  : (v.fuelType.usesCharge ? 'Yakıt ve şarj' : 'Yakıt')),
+          AppColors.catFuel,
+          {RecordCategory.fuel, RecordCategory.charge}),
       CostGroup('Sigorta ve kasko', AppColors.catIns, {RecordCategory.insurance}),
       CostGroup('Bakım ve lastik', AppColors.catMaint, {RecordCategory.maintenance, RecordCategory.tire}),
       CostGroup('Vergi, muayene, diğer', AppColors.catTax,
           {RecordCategory.tax, RecordCategory.inspection, RecordCategory.fine, RecordCategory.other}),
     ];
 
-TrueCost computeTrueCost(Vehicle v, List<ExpenseRecord> records, CostPeriod period) {
+TrueCost computeTrueCost(Vehicle v, List<ExpenseRecord> records, CostPeriod period, {bool splitLpg = false}) {
   final now = DateTime.now();
   final end = today();
   final own = records.where((r) => r.vehicleId == v.id).toList();
@@ -79,13 +92,16 @@ TrueCost computeTrueCost(Vehicle v, List<ExpenseRecord> records, CostPeriod peri
   var days = daysBetween(start, end) + 1;
   if (days < 1) days = 1;
 
-  final groups = _groups(v);
+  final groups = _groups(v, splitLpg);
   var total = 0;
   for (final r in own) {
     if (r.date.isBefore(start) || r.date.isAfter(now)) continue;
     total += r.amountKurus;
     for (final g in groups) {
-      if (g.cats.contains(r.category)) g.kurus += r.amountKurus;
+      if (g.accepts(r)) {
+        g.kurus += r.amountKurus;
+        break;
+      }
     }
   }
 
